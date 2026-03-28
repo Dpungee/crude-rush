@@ -3,7 +3,7 @@
 import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useMissionStore } from '@/stores/missionStore'
-import { BUILDING_DEFINITIONS, getBuildingCost, getBuildingUpgradeCost, isBuildingUnlocked } from '@/engine/buildings'
+import { BUILDING_DEFINITIONS, getBuildingCost, getBuildingUpgradeCost, getAvailableBuildings } from '@/engine/buildings'
 import type { BuildingType } from '@/engine/types'
 import { formatCommas } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -13,8 +13,8 @@ export function BuildMenu() {
   const showBuildMenu = useUiStore((s) => s.showBuildMenu)
   const clearSelection = useUiStore((s) => s.clearSelection)
 
-  const cells = useGameStore((s) => s.cells)
-  const gridSize = useGameStore((s) => s.gridSize)
+  const plots = useGameStore((s) => s.plots)
+  const unlockedTileCount = useGameStore((s) => s.unlockedTileCount)
   const petrodollars = useGameStore((s) => s.petrodollars)
   const buildOnCell = useGameStore((s) => s.buildOnCell)
   const upgradeBuilding = useGameStore((s) => s.upgradeBuilding)
@@ -23,8 +23,8 @@ export function BuildMenu() {
 
   if (!showBuildMenu || !selectedCell) return null
 
-  const cell = cells.find((c) => c.x === selectedCell.x && c.y === selectedCell.y)
-  if (!cell) return null
+  const plot = plots.find((p) => p.x === selectedCell.x && p.y === selectedCell.y)
+  if (!plot || plot.status !== 'unlocked') return null
 
   const handleBuild = (type: BuildingType) => {
     const success = buildOnCell(selectedCell.x, selectedCell.y, type)
@@ -36,19 +36,19 @@ export function BuildMenu() {
   }
 
   const handleUpgrade = () => {
-    if (!cell.building) return
+    if (!plot.building) return
     const success = upgradeBuilding(selectedCell.x, selectedCell.y)
     if (success) {
       trackEvent('building_upgraded', 1)
-      addToast({ message: `Upgraded to Lv.${cell.level + 1}!`, type: 'success' })
+      addToast({ message: `Upgraded to Lv.${plot.level + 1}!`, type: 'success' })
       clearSelection()
     }
   }
 
   // If cell has a building, show upgrade menu
-  if (cell.building) {
-    const def = BUILDING_DEFINITIONS[cell.building]
-    const upgradeCost = getBuildingUpgradeCost(cell.building, cell.level)
+  if (plot.building) {
+    const def = BUILDING_DEFINITIONS[plot.building]
+    const upgradeCost = getBuildingUpgradeCost(plot.building, plot.level)
     const canAfford = petrodollars >= upgradeCost
 
     return (
@@ -59,12 +59,12 @@ export function BuildMenu() {
               <span className="text-2xl">{def.emoji}</span>
               <div>
                 <h3 className="font-bold text-foreground text-sm">{def.name}</h3>
-                <p className="text-xs text-muted-foreground">Level {cell.level}</p>
+                <p className="text-xs text-muted-foreground">Level {plot.level}</p>
               </div>
             </div>
             <button
               onClick={clearSelection}
-              className="text-muted-foreground hover:text-foreground text-lg"
+              className="text-muted-foreground hover:text-foreground text-lg leading-none"
             >
               ×
             </button>
@@ -80,17 +80,15 @@ export function BuildMenu() {
                 : 'bg-oil-700 text-muted-foreground cursor-not-allowed'
             )}
           >
-            Upgrade to Lv.{cell.level + 1} — ${formatCommas(upgradeCost)}
+            Upgrade to Lv.{plot.level + 1} — ${formatCommas(upgradeCost)}
           </button>
         </div>
       </div>
     )
   }
 
-  // Empty cell — show build options
-  const availableBuildings = (Object.keys(BUILDING_DEFINITIONS) as BuildingType[]).filter(
-    (type) => isBuildingUnlocked(type, gridSize)
-  )
+  // Empty unlocked cell — show build options
+  const availableBuildings = getAvailableBuildings(unlockedTileCount)
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-80">
@@ -99,7 +97,7 @@ export function BuildMenu() {
           <h3 className="font-bold text-foreground text-sm">Build Structure</h3>
           <button
             onClick={clearSelection}
-            className="text-muted-foreground hover:text-foreground text-lg"
+            className="text-muted-foreground hover:text-foreground text-lg leading-none"
           >
             ×
           </button>

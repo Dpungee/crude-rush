@@ -35,9 +35,7 @@ export function validateSaveDelta(
     }
   }
 
-  // Check petrodollars didn't increase without a valid source
-  // (This is a soft check — selling oil legitimately increases petrodollars)
-  // We allow generous tolerance since players can sell oil
+  // Soft check on petrodollars — allow generous tolerance since selling is valid
   if (current.petrodollars > previous.petrodollars + previous.lifetimeBarrels * 100) {
     return {
       valid: false,
@@ -50,12 +48,12 @@ export function validateSaveDelta(
     return { valid: false, reason: 'Lifetime barrels decreased' }
   }
 
-  // Grid size should only increase or stay the same (except prestige)
+  // Unlocked tile count should only increase (except prestige resets)
   if (
-    current.gridSize < previous.gridSize &&
+    current.unlockedTileCount < previous.unlockedTileCount &&
     current.prestigeLevel === previous.prestigeLevel
   ) {
-    return { valid: false, reason: 'Grid size decreased without prestige' }
+    return { valid: false, reason: 'Unlocked tile count decreased without prestige' }
   }
 
   return { valid: true }

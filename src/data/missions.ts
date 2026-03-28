@@ -21,6 +21,15 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     trackEvent: 'barrels_produced',
   },
   {
+    key: 'unlock_3',
+    name: 'Land Grab',
+    description: 'Unlock 3 new plots of land.',
+    target: 3,
+    rewardType: 'petrodollars',
+    rewardAmount: 150,
+    trackEvent: 'tile_unlocked',
+  },
+  {
     key: 'upgrade_3',
     name: 'Tinkerer',
     description: 'Upgrade any building 3 times.',
@@ -50,13 +59,13 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
 
   // Mid game
   {
-    key: 'expand_once',
-    name: 'Land Grab',
-    description: 'Expand your grid for the first time.',
-    target: 1,
+    key: 'unlock_10',
+    name: 'Empire Builder',
+    description: 'Unlock 10 plots of land.',
+    target: 10,
     rewardType: 'petrodollars',
-    rewardAmount: 250,
-    trackEvent: 'grid_expanded',
+    rewardAmount: 500,
+    trackEvent: 'tile_unlocked',
   },
   {
     key: 'drill_10000',
@@ -133,12 +142,12 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     trackEvent: 'barrels_produced',
   },
   {
-    key: 'expand_3',
+    key: 'unlock_25',
     name: 'Land Mogul',
-    description: 'Expand your grid 3 times.',
-    target: 3,
+    description: 'Unlock 25 plots of land.',
+    target: 25,
     rewardType: 'petrodollars',
     rewardAmount: 3_000,
-    trackEvent: 'grid_expanded',
+    trackEvent: 'tile_unlocked',
   },
 ]

@@ -1,5 +1,4 @@
 import type { GameState } from './types'
-import { MAX_OFFLINE_SECONDS } from './constants'
 import { getMaxOfflineSeconds } from './upgrades'
 import { tickOffline } from './tick'
 
@@ -26,7 +25,7 @@ export function calculateOfflineIncome(
 ): OfflineIncomeResult {
   const rawSeconds = (nowMs - state.lastTickAt) / 1000
 
-  // Cap offline duration based on upgrade level
+  // Cap offline duration based on Night Shift upgrade level
   const maxSeconds = getMaxOfflineSeconds(state.upgrades.offline_duration)
   const secondsOffline = Math.min(Math.max(0, rawSeconds), maxSeconds)
 
@@ -48,7 +47,7 @@ export function calculateOfflineIncome(
   return {
     state: { ...newState, lastTickAt: nowMs },
     secondsOffline,
-    crudeEarned: newState.crudeOil - prevCrude,
-    refinedEarned: newState.refinedOil - prevRefined,
+    crudeEarned: Math.max(0, newState.crudeOil - prevCrude),
+    refinedEarned: Math.max(0, newState.refinedOil - prevRefined),
   }
 }

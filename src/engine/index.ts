@@ -1,6 +1,3 @@
-// Crude Rush - Game Engine
-// Pure TypeScript game logic, no React dependencies
-
 export * from './types'
 export * from './constants'
 export * from './buildings'

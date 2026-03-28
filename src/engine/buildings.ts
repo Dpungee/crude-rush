@@ -6,11 +6,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     name: 'Oil Well',
     description: 'Basic oil extraction. Slow but reliable.',
     emoji: '🛢️',
+    color: '#b45309',
     baseCost: 50,
     costMultiplier: 1.5,
     baseProduction: 0.5,
     productionPerLevel: 0.2,
-    unlockGridSize: 3,
+    unlockTileCount: 1,
     baseStorageBonus: 0,
     storagePerLevel: 0,
     baseRefineryRate: 0,
@@ -21,11 +22,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     name: 'Pump Jack',
     description: 'Mechanical pump. Much faster extraction.',
     emoji: '⛽',
+    color: '#0369a1',
     baseCost: 500,
     costMultiplier: 1.5,
     baseProduction: 2.0,
     productionPerLevel: 0.8,
-    unlockGridSize: 5,
+    unlockTileCount: 5,
     baseStorageBonus: 0,
     storagePerLevel: 0,
     baseRefineryRate: 0,
@@ -36,11 +38,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     name: 'Derrick',
     description: 'Industrial drilling tower. Maximum output.',
     emoji: '🏗️',
+    color: '#7c3aed',
     baseCost: 5_000,
     costMultiplier: 1.5,
     baseProduction: 10.0,
     productionPerLevel: 4.0,
-    unlockGridSize: 7,
+    unlockTileCount: 13,
     baseStorageBonus: 0,
     storagePerLevel: 0,
     baseRefineryRate: 0,
@@ -51,11 +54,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     name: 'Storage Tank',
     description: 'Increases crude oil storage capacity.',
     emoji: '🏭',
+    color: '#047857',
     baseCost: 200,
     costMultiplier: 1.4,
     baseProduction: 0,
     productionPerLevel: 0,
-    unlockGridSize: 3,
+    unlockTileCount: 1,
     baseStorageBonus: 200,
     storagePerLevel: 100,
     baseRefineryRate: 0,
@@ -66,30 +70,16 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     name: 'Refinery',
     description: 'Processes crude into valuable refined oil.',
     emoji: '🔥',
+    color: '#dc2626',
     baseCost: 1_000,
     costMultiplier: 1.6,
     baseProduction: 0,
     productionPerLevel: 0,
-    unlockGridSize: 5,
+    unlockTileCount: 5,
     baseStorageBonus: 0,
     storagePerLevel: 0,
     baseRefineryRate: 1.0,
     refineryRatePerLevel: 0.5,
-  },
-  pipeline: {
-    type: 'pipeline',
-    name: 'Pipeline',
-    description: 'Connects wells to refinery. Boosts flow by 10%.',
-    emoji: '🔗',
-    baseCost: 300,
-    costMultiplier: 1.3,
-    baseProduction: 0,
-    productionPerLevel: 0,
-    unlockGridSize: 5,
-    baseStorageBonus: 0,
-    storagePerLevel: 0,
-    baseRefineryRate: 0,
-    refineryRatePerLevel: 0,
   },
 }
 
@@ -124,14 +114,14 @@ export function getBuildingUpgradeCost(type: BuildingType, currentLevel: number)
   return getBuildingCost(type, currentLevel + 1)
 }
 
-/** Check if a building type is unlocked at the current grid size */
-export function isBuildingUnlocked(type: BuildingType, gridSize: number): boolean {
-  return gridSize >= BUILDING_DEFINITIONS[type].unlockGridSize
+/** Check if a building type is available at the current unlocked tile count */
+export function isBuildingAvailable(type: BuildingType, unlockedTileCount: number): boolean {
+  return unlockedTileCount >= BUILDING_DEFINITIONS[type].unlockTileCount
 }
 
-/** Get all buildings unlocked at a given grid size */
-export function getUnlockedBuildings(gridSize: number): BuildingType[] {
+/** Get all buildings available at a given unlocked tile count */
+export function getAvailableBuildings(unlockedTileCount: number): BuildingType[] {
   return (Object.keys(BUILDING_DEFINITIONS) as BuildingType[]).filter(
-    (type) => isBuildingUnlocked(type, gridSize)
+    (type) => isBuildingAvailable(type, unlockedTileCount)
   )
 }

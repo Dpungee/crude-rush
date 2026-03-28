@@ -2,6 +2,7 @@
 export type {
   BuildingType,
   UpgradeType,
+  TileStatus,
   ResourceType,
   MissionRewardType,
   GridCell,
@@ -19,7 +20,7 @@ export type {
 } from '@/engine/types'
 
 // UI-specific types
-export type PanelTab = 'upgrades' | 'missions' | 'leaderboard' | 'prestige'
+export type PanelTab = 'market' | 'upgrades' | 'missions' | 'leaderboard' | 'prestige'
 
 export interface Toast {
   id: string

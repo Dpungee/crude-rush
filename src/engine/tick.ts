@@ -19,7 +19,7 @@ export function tick(state: GameState, deltaMs: number): GameState {
 
   let crudeOil = state.crudeOil + actualProduced
   let refinedOil = state.refinedOil
-  let lifetimeBarrels = state.lifetimeBarrels + actualProduced
+  const lifetimeBarrels = state.lifetimeBarrels + actualProduced
 
   // --- Refinery Processing ---
   if (state.refineryRate > 0 && crudeOil > 0) {
@@ -41,9 +41,8 @@ export function tick(state: GameState, deltaMs: number): GameState {
 }
 
 /**
- * Run multiple ticks for offline catch-up.
- * Uses a single large tick rather than iterating 1-second ticks
- * (since our tick function is linear and order-independent for production).
+ * Run a large offline tick for catch-up.
+ * Linear production is order-independent so one big tick is correct.
  */
 export function tickOffline(state: GameState, secondsElapsed: number): GameState {
   return tick(state, secondsElapsed * 1000)

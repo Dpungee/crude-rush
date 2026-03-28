@@ -9,14 +9,14 @@ export type BuildingType =
   | 'derrick'
   | 'storage_tank'
   | 'refinery'
-  | 'pipeline'
 
 export type UpgradeType =
-  | 'well_speed'
-  | 'storage_cap'
-  | 'refinery_eff'
-  | 'auto_collect'
+  | 'extraction_speed'
+  | 'storage_expansion'
+  | 'auto_sell'
   | 'offline_duration'
+
+export type TileStatus = 'locked' | 'available' | 'unlocked'
 
 export type ResourceType = 'crude_oil' | 'refined_oil' | 'petrodollars'
 
@@ -25,11 +25,11 @@ export type MissionRewardType = 'petrodollars' | 'crude_oil' | 'unlock'
 export interface GridCell {
   x: number
   y: number
+  status: TileStatus
   building: BuildingType | null
   level: number
   builtAt: string | null
-  /** Accumulated oil since last collect (for tap-to-collect) */
-  pendingOil: number
+  unlockCost: number
 }
 
 export interface BuildingDefinition {
@@ -37,12 +37,13 @@ export interface BuildingDefinition {
   name: string
   description: string
   emoji: string
+  color: string
   baseCost: number
   costMultiplier: number
   baseProduction: number
   productionPerLevel: number
-  /** Minimum grid size required to unlock this building */
-  unlockGridSize: number
+  /** Minimum unlocked tiles required to unlock this building */
+  unlockTileCount: number
   /** For storage tanks: base capacity added */
   baseStorageBonus: number
   storagePerLevel: number
@@ -74,11 +75,10 @@ export interface MissionDefinition {
 
 export type GameEventType =
   | 'barrels_produced'
-  | 'barrels_collected'
+  | 'tile_unlocked'
   | 'building_built'
   | 'building_upgraded'
   | 'upgrade_purchased'
-  | 'grid_expanded'
   | 'oil_refined'
   | 'oil_sold'
   | 'prestige_reset'
@@ -95,16 +95,16 @@ export interface GameState {
   refinedOil: number
   petrodollars: number
 
-  // Grid
-  gridSize: number
-  cells: GridCell[]
+  // Grid (7×7 = 49 tiles)
+  plots: GridCell[]
+  unlockedTileCount: number
 
   // Derived stats (recalculated from buildings+upgrades)
   productionRate: number
   storageCapacity: number
   refineryRate: number
 
-  // Upgrades
+  // Upgrades: level for each type
   upgrades: Record<UpgradeType, number>
 
   // Prestige
@@ -164,8 +164,8 @@ export interface ServerGameState {
   crude_oil: number
   refined_oil: number
   petrodollars: number
-  grid_size: number
-  grid_data: GridCell[]
+  plots_data: GridCell[]
+  unlocked_tile_count: number
   production_rate: number
   storage_capacity: number
   refinery_rate: number

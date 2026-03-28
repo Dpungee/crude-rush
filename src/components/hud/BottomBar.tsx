@@ -6,13 +6,12 @@ import { formatNumber } from '@/lib/utils'
 export function BottomBar() {
   const productionRate = useGameStore((s) => s.productionRate)
   const refineryRate = useGameStore((s) => s.refineryRate)
-  const gridSize = useGameStore((s) => s.gridSize)
-  const cells = useGameStore((s) => s.cells)
+  const plots = useGameStore((s) => s.plots)
+  const unlockedTileCount = useGameStore((s) => s.unlockedTileCount)
   const lifetimeBarrels = useGameStore((s) => s.lifetimeBarrels)
   const prestigeLevel = useGameStore((s) => s.prestigeLevel)
 
-  const buildingCount = cells.filter((c) => c.building !== null).length
-  const totalCells = gridSize * gridSize
+  const buildingCount = plots.filter((p) => p.building !== null).length
 
   return (
     <div className="h-10 bg-oil-900/90 border-t border-oil-800 flex items-center justify-between px-4 text-xs backdrop-blur-sm">
@@ -34,9 +33,9 @@ export function BottomBar() {
         )}
 
         <span className="text-muted-foreground">
-          Grid:{' '}
+          Plots:{' '}
           <span className="text-foreground font-medium">
-            {buildingCount}/{totalCells}
+            {buildingCount} buildings / {unlockedTileCount} unlocked
           </span>
         </span>
       </div>

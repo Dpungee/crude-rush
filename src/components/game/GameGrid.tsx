@@ -2,20 +2,20 @@
 
 import { useGameStore } from '@/stores/gameStore'
 import { GridCell } from './GridCell'
+import { GRID_SIZE } from '@/engine/constants'
 
 export function GameGrid() {
-  const gridSize = useGameStore((s) => s.gridSize)
-  const cells = useGameStore((s) => s.cells)
+  const plots = useGameStore((s) => s.plots)
 
   return (
     <div
-      className="grid gap-1.5 w-full max-w-[520px] aspect-square"
+      className="grid gap-1 w-full max-w-[560px] aspect-square"
       style={{
-        gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
+        gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
       }}
     >
-      {cells.map((cell) => (
-        <GridCell key={`${cell.x}-${cell.y}`} cell={cell} />
+      {plots.map((plot) => (
+        <GridCell key={`${plot.x}-${plot.y}`} cell={plot} />
       ))}
     </div>
   )

@@ -17,20 +17,20 @@ CREATE TABLE IF NOT EXISTS players (
   lifetime_petrodollars BIGINT DEFAULT 0
 );
 
--- Game states table
+-- Game states table (7x7 tile-based grid)
 CREATE TABLE IF NOT EXISTS game_states (
-  wallet_address    TEXT PRIMARY KEY REFERENCES players(wallet_address) ON DELETE CASCADE,
-  crude_oil         FLOAT DEFAULT 0,
-  refined_oil       FLOAT DEFAULT 0,
-  petrodollars      BIGINT DEFAULT 100,
-  grid_size         INT DEFAULT 3,
-  grid_data         JSONB DEFAULT '[]'::jsonb,
-  production_rate   FLOAT DEFAULT 0,
-  storage_capacity  FLOAT DEFAULT 100,
-  refinery_rate     FLOAT DEFAULT 0,
-  last_tick_at      TIMESTAMPTZ DEFAULT now(),
-  updated_at        TIMESTAMPTZ DEFAULT now(),
-  version           INT DEFAULT 1
+  wallet_address      TEXT PRIMARY KEY REFERENCES players(wallet_address) ON DELETE CASCADE,
+  crude_oil           FLOAT DEFAULT 0,
+  refined_oil         FLOAT DEFAULT 0,
+  petrodollars        BIGINT DEFAULT 100,
+  plots_data          JSONB DEFAULT '[]'::jsonb,
+  unlocked_tile_count INT DEFAULT 1,
+  production_rate     FLOAT DEFAULT 0,
+  storage_capacity    FLOAT DEFAULT 200,
+  refinery_rate       FLOAT DEFAULT 0,
+  last_tick_at        TIMESTAMPTZ DEFAULT now(),
+  updated_at          TIMESTAMPTZ DEFAULT now(),
+  version             INT DEFAULT 1
 );
 
 -- Upgrades table

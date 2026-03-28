@@ -1,10 +1,13 @@
-import type { GameState, GridCell, UpgradeType } from './types'
+import type { GameState, GridCell, UpgradeType, TileStatus } from './types'
 import {
   PRESTIGE_BASE_THRESHOLD,
   PRESTIGE_THRESHOLD_MULTIPLIER,
   PRESTIGE_BONUS_PER_LEVEL,
   STARTING_PETRODOLLARS,
   STARTING_STORAGE,
+  GRID_SIZE,
+  GRID_CENTER,
+  TILE_UNLOCK_COSTS,
 } from './constants'
 
 /**
@@ -30,6 +33,25 @@ export function getPrestigeMultiplier(level: number): number {
 }
 
 /**
+ * Create the initial 7x7 grid for a fresh start or prestige reset.
+ * Center tile (3,3) is unlocked; ring-1 tiles are 'available'; all others are 'locked'.
+ */
+export function createInitialGrid(): GridCell[] {
+  const plots: GridCell[] = []
+  for (let y = 0; y < GRID_SIZE; y++) {
+    for (let x = 0; x < GRID_SIZE; x++) {
+      const dist = Math.max(Math.abs(x - GRID_CENTER), Math.abs(y - GRID_CENTER))
+      const unlockCost = TILE_UNLOCK_COSTS[dist] ?? TILE_UNLOCK_COSTS[3]
+      let status: TileStatus = 'locked'
+      if (dist === 0) status = 'unlocked'
+      else if (dist === 1) status = 'available'
+      plots.push({ x, y, status, building: null, level: 0, builtAt: null, unlockCost })
+    }
+  }
+  return plots
+}
+
+/**
  * Perform a prestige reset (the "Wildcatter Reset").
  * - Increments prestige level
  * - Resets all resources, buildings, and upgrades
@@ -39,20 +61,12 @@ export function performPrestige(state: GameState): GameState {
   const newPrestigeLevel = state.prestigeLevel + 1
   const newMultiplier = getPrestigeMultiplier(newPrestigeLevel)
 
-  // Create fresh 3x3 grid
-  const cells: GridCell[] = []
-  for (let y = 0; y < 3; y++) {
-    for (let x = 0; x < 3; x++) {
-      cells.push({ x, y, building: null, level: 0, builtAt: null, pendingOil: 0 })
-    }
-  }
+  const plots = createInitialGrid()
 
-  // Reset upgrades to 0
   const upgrades: Record<UpgradeType, number> = {
-    well_speed: 0,
-    storage_cap: 0,
-    refinery_eff: 0,
-    auto_collect: 0,
+    extraction_speed: 0,
+    storage_expansion: 0,
+    auto_sell: 0,
     offline_duration: 0,
   }
 
@@ -64,8 +78,8 @@ export function performPrestige(state: GameState): GameState {
     petrodollars: STARTING_PETRODOLLARS,
 
     // Reset grid
-    gridSize: 3,
-    cells,
+    plots,
+    unlockedTileCount: 1,
 
     // Reset derived stats
     productionRate: 0,
