@@ -7,12 +7,14 @@ export type BuildingType =
   | 'oil_well'
   | 'pump_jack'
   | 'derrick'
+  | 'oil_terminal'
   | 'storage_tank'
   | 'refinery'
 
 export type UpgradeType =
   | 'extraction_speed'
   | 'storage_expansion'
+  | 'refinery_efficiency'
   | 'auto_sell'
   | 'offline_duration'
 
@@ -21,6 +23,8 @@ export type TileStatus = 'locked' | 'available' | 'unlocked'
 export type ResourceType = 'crude_oil' | 'refined_oil' | 'petrodollars'
 
 export type MissionRewardType = 'petrodollars' | 'crude_oil' | 'unlock'
+
+export type MissionFrequency = 'daily' | 'weekly' | 'lifetime'
 
 export interface GridCell {
   x: number
@@ -42,14 +46,21 @@ export interface BuildingDefinition {
   costMultiplier: number
   baseProduction: number
   productionPerLevel: number
-  /** Minimum unlocked tiles required to unlock this building */
+  /** Minimum unlocked tiles required to purchase */
   unlockTileCount: number
-  /** For storage tanks: base capacity added */
+  /** Storage tanks: base capacity added */
   baseStorageBonus: number
   storagePerLevel: number
-  /** For refineries: base crude→refined per second */
+  /** Refineries: base crude→refined per second */
   baseRefineryRate: number
   refineryRatePerLevel: number
+  /**
+   * Oil Terminal: production aura radius (Chebyshev).
+   * Buildings within this radius get an aura bonus.
+   * 0 = no aura.
+   */
+  auraRadius: number
+  auraBonus: number
 }
 
 export interface UpgradeDefinition {
@@ -58,6 +69,7 @@ export interface UpgradeDefinition {
   description: string
   emoji: string
   baseCost: number
+  /** Polynomial exponent: cost(tier) = baseCost × tier^costExponent */
   costExponent: number
   maxLevel: number
   effectPerLevel: number
@@ -71,6 +83,7 @@ export interface MissionDefinition {
   rewardType: MissionRewardType
   rewardAmount: number
   trackEvent: GameEventType
+  frequency: MissionFrequency
 }
 
 export type GameEventType =
@@ -110,6 +123,30 @@ export interface GameState {
   // Prestige
   prestigeLevel: number
   prestigeMultiplier: number
+
+  // Black Gold (prestige currency)
+  blackGold: number
+
+  // XP & level
+  xp: number
+  xpLevel: number
+
+  // Permanent milestone bonuses (multiplicative, compound over milestones)
+  milestoneProductionBonus: number  // e.g. 1.05 after 1M milestone
+  milestoneCashBonus: number        // e.g. 1.10 after 10M milestone
+
+  // Market & economy
+  /** Current market sell multiplier — sine-wave between 0.80 and 1.20 */
+  marketMultiplier: number
+
+  // Login streak
+  loginStreak: number
+  /** Multiplicative sell bonus from streak: 1 + STREAK_BONUS_PER_DAY × min(streak, 30) */
+  streakMultiplier: number
+
+  // Active temporary buff (e.g. day-7 reward)
+  activeTempMultiplier: number
+  activeTempMultiplierExpiresAt: number | null  // unix ms
 
   // Lifetime stats (never reset by prestige)
   lifetimeBarrels: number
@@ -166,6 +203,7 @@ export interface ServerGameState {
   petrodollars: number
   plots_data: GridCell[]
   unlocked_tile_count: number
+  upgrades_data: Record<UpgradeType, number>
   production_rate: number
   storage_capacity: number
   refinery_rate: number
@@ -174,6 +212,13 @@ export interface ServerGameState {
   // From players table
   prestige_level: number
   prestige_multiplier: number
+  black_gold: number
+  xp: number
+  xp_level: number
+  milestone_production_bonus: number
+  milestone_cash_bonus: number
+  login_streak: number
+  streak_multiplier: number
   lifetime_barrels: number
   lifetime_petrodollars: number
 }

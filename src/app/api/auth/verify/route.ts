@@ -3,7 +3,7 @@ import nacl from 'tweetnacl'
 import bs58 from 'bs58'
 import { createSignMessage, signJWT } from '@/lib/wallet-auth'
 import { getServiceSupabase } from '@/lib/supabase-server'
-import { getNonce, clearNonce } from '../nonce/route'
+import { getNonce, clearNonce } from '@/lib/nonce-store'
 
 export async function POST(request: Request) {
   try {

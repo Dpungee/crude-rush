@@ -10,6 +10,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 50,
     trackEvent: 'building_built',
+    frequency: 'lifetime',
   },
   {
     key: 'drill_100',
@@ -19,6 +20,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 100,
     trackEvent: 'barrels_produced',
+    frequency: 'lifetime',
   },
   {
     key: 'unlock_3',
@@ -28,6 +30,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 150,
     trackEvent: 'tile_unlocked',
+    frequency: 'lifetime',
   },
   {
     key: 'upgrade_3',
@@ -37,6 +40,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 75,
     trackEvent: 'building_upgraded',
+    frequency: 'lifetime',
   },
   {
     key: 'drill_1000',
@@ -46,6 +50,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 300,
     trackEvent: 'barrels_produced',
+    frequency: 'lifetime',
   },
   {
     key: 'build_5',
@@ -55,6 +60,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 200,
     trackEvent: 'building_built',
+    frequency: 'lifetime',
   },
 
   // Mid game
@@ -66,6 +72,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 500,
     trackEvent: 'tile_unlocked',
+    frequency: 'lifetime',
   },
   {
     key: 'drill_10000',
@@ -75,6 +82,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 1_000,
     trackEvent: 'barrels_produced',
+    frequency: 'lifetime',
   },
   {
     key: 'refine_100',
@@ -84,6 +92,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 500,
     trackEvent: 'oil_refined',
+    frequency: 'lifetime',
   },
   {
     key: 'upgrade_10',
@@ -93,6 +102,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 400,
     trackEvent: 'building_upgraded',
+    frequency: 'lifetime',
   },
   {
     key: 'purchase_5_upgrades',
@@ -102,6 +112,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 350,
     trackEvent: 'upgrade_purchased',
+    frequency: 'lifetime',
   },
 
   // Late game
@@ -113,6 +124,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 5_000,
     trackEvent: 'barrels_produced',
+    frequency: 'lifetime',
   },
   {
     key: 'sell_oil',
@@ -122,6 +134,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 750,
     trackEvent: 'oil_sold',
+    frequency: 'lifetime',
   },
   {
     key: 'prestige_once',
@@ -131,6 +144,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 2_000,
     trackEvent: 'prestige_reset',
+    frequency: 'lifetime',
   },
   {
     key: 'drill_1000000',
@@ -140,6 +154,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 25_000,
     trackEvent: 'barrels_produced',
+    frequency: 'lifetime',
   },
   {
     key: 'unlock_25',
@@ -149,5 +164,6 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     rewardType: 'petrodollars',
     rewardAmount: 3_000,
     trackEvent: 'tile_unlocked',
+    frequency: 'lifetime',
   },
 ]

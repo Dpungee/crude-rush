@@ -1,58 +1,83 @@
 import type { GridCell, UpgradeType } from './types'
-import { getBuildingProduction, getBuildingStorageBonus, getBuildingRefineryRate } from './buildings'
-import { getExtractionSpeedMultiplier, getStorageExpansionBonus } from './upgrades'
-import { STARTING_STORAGE, REFINERY_CONVERSION_RATIO } from './constants'
+import { getBuildingProduction, getBuildingStorageBonus, getBuildingRefineryRate, BUILDING_DEFINITIONS } from './buildings'
+import { getExtractionSpeedMultiplier, getStorageExpansionMultiplier, getRefineryEfficiencyMultiplier } from './upgrades'
+import { STARTING_STORAGE } from './constants'
 
-/** Producer building types */
+/** Building types that produce crude oil */
 const PRODUCER_TYPES = new Set(['oil_well', 'pump_jack', 'derrick'])
 
 /**
- * Calculate total crude oil production rate (barrels per second)
- * from all buildings, upgrades, prestige multiplier, and optional staking bonus.
+ * Calculate Oil Terminal aura multiplier for a specific producer tile.
+ * Each terminal within Chebyshev radius 1 (excluding the tile itself) adds its auraBonus × level.
+ * Multiple terminals stack additively: 2 L1 terminals → +40%.
+ */
+function getAuraMultiplier(plots: GridCell[], producerX: number, producerY: number): number {
+  let bonus = 0
+  for (const plot of plots) {
+    if (plot.building !== 'oil_terminal') continue
+    const dx = Math.abs(plot.x - producerX)
+    const dy = Math.abs(plot.y - producerY)
+    const dist = Math.max(dx, dy)
+    const def = BUILDING_DEFINITIONS['oil_terminal']
+    if (dist > 0 && dist <= def.auraRadius) {
+      bonus += def.auraBonus * plot.level
+    }
+  }
+  return 1 + bonus
+}
+
+/**
+ * Calculate total crude oil production rate (barrels/second) from all buildings,
+ * upgrades, prestige multiplier, staking bonus, Oil Terminal auras,
+ * and permanent milestone production bonus.
  *
- * @param stakingMultiplier - from /api/game/staking-bonus (default 1.0 = no bonus)
+ * @param stakingMultiplier - from /api/game/staking-bonus (default 1.0)
+ * @param milestoneBonus    - permanent production bonus from barrel milestones
  */
 export function calculateProductionRate(
   plots: GridCell[],
   upgrades: Record<UpgradeType, number>,
   prestigeMultiplier: number,
-  stakingMultiplier = 1.0
+  stakingMultiplier = 1.0,
+  milestoneBonus = 1.0
 ): number {
   let totalProduction = 0
 
   for (const plot of plots) {
     if (!plot.building || !PRODUCER_TYPES.has(plot.building)) continue
-    totalProduction += getBuildingProduction(plot.building, plot.level)
+    const base = getBuildingProduction(plot.building, plot.level)
+    const aura = getAuraMultiplier(plots, plot.x, plot.y)
+    totalProduction += base * aura
   }
 
   const speedMultiplier = getExtractionSpeedMultiplier(upgrades.extraction_speed)
 
-  return totalProduction * speedMultiplier * prestigeMultiplier * stakingMultiplier
+  return totalProduction * speedMultiplier * prestigeMultiplier * stakingMultiplier * milestoneBonus
 }
 
 /**
- * Calculate total storage capacity from base + tanks + upgrades.
+ * Calculate total storage capacity.
+ * = (STARTING_STORAGE + tank bonuses) × storage_expansion multiplier
  */
 export function calculateStorageCapacity(
   plots: GridCell[],
   upgrades: Record<UpgradeType, number>
 ): number {
   let tankBonus = 0
-
   for (const plot of plots) {
     if (plot.building === 'storage_tank') {
       tankBonus += getBuildingStorageBonus('storage_tank', plot.level)
     }
   }
 
-  const upgradeBonus = getStorageExpansionBonus(upgrades.storage_expansion)
-
-  return STARTING_STORAGE + tankBonus + upgradeBonus
+  const expansionMult = getStorageExpansionMultiplier(upgrades.storage_expansion)
+  return Math.floor((STARTING_STORAGE + tankBonus) * expansionMult)
 }
 
 /**
- * Calculate total refinery processing rate (crude consumed per second).
- * Output = crude_consumed * REFINERY_CONVERSION_RATIO = refined produced.
+ * Calculate refinery processing rate (crude/second consumed).
+ * Refined output = rate × REFINERY_CONVERSION_RATIO.
+ * Scaled by refinery_efficiency upgrade.
  */
 export function calculateRefineryRate(
   plots: GridCell[],
@@ -60,33 +85,35 @@ export function calculateRefineryRate(
   prestigeMultiplier: number
 ): number {
   let totalRate = 0
-
   for (const plot of plots) {
     if (plot.building === 'refinery') {
       totalRate += getBuildingRefineryRate('refinery', plot.level)
     }
   }
 
-  return totalRate * prestigeMultiplier
+  const effMult = getRefineryEfficiencyMultiplier(upgrades.refinery_efficiency)
+  return totalRate * effMult * prestigeMultiplier
 }
 
 /**
- * Recalculate all derived stats from the current game state pieces.
+ * Recalculate all derived production stats.
  *
  * @param stakingMultiplier - from /api/game/staking-bonus (default 1.0)
+ * @param milestoneBonus    - compound production bonus from barrel milestones
  */
 export function recalculateDerivedStats(
   plots: GridCell[],
   upgrades: Record<UpgradeType, number>,
   prestigeMultiplier: number,
-  stakingMultiplier = 1.0
+  stakingMultiplier = 1.0,
+  milestoneBonus = 1.0
 ): {
   productionRate: number
   storageCapacity: number
   refineryRate: number
 } {
   return {
-    productionRate: calculateProductionRate(plots, upgrades, prestigeMultiplier, stakingMultiplier),
+    productionRate: calculateProductionRate(plots, upgrades, prestigeMultiplier, stakingMultiplier, milestoneBonus),
     storageCapacity: calculateStorageCapacity(plots, upgrades),
     refineryRate: calculateRefineryRate(plots, upgrades, prestigeMultiplier),
   }
