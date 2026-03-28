@@ -2,9 +2,15 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "crude-rush-dev",
+      "name": "crude-rush dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "crude-rush start (production)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
       "port": 3000
     }
   ]

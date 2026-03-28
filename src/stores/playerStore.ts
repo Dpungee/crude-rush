@@ -4,48 +4,62 @@ interface PlayerState {
   walletAddress: string | null
   displayName: string | null
   isConnected: boolean
-  isLoading: boolean
+  isAuthenticating: boolean
+  isAuthenticated: boolean  // true only after sign-message verification succeeds
+  authToken: string | null  // JWT for all subsequent API calls
   loginStreak: number
-  authToken: string | null
+  pendingCrudeTokens: number  // shadow ledger balance in micro-$CRUDE (1e6 = 1 token)
 
   // Actions
   setWallet: (address: string) => void
-  setAuthToken: (token: string) => void
+  setAuthResult: (token: string, walletAddress: string, loginStreak: number) => void
   setDisplayName: (name: string) => void
   setLoginStreak: (streak: number) => void
+  setPendingTokens: (amount: number) => void
+  setAuthenticating: (v: boolean) => void
   disconnect: () => void
-  setLoading: (loading: boolean) => void
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
   walletAddress: null,
   displayName: null,
   isConnected: false,
-  isLoading: false,
-  loginStreak: 0,
+  isAuthenticating: false,
+  isAuthenticated: false,
   authToken: null,
+  loginStreak: 0,
+  pendingCrudeTokens: 0,
 
   setWallet: (address) =>
     set({ walletAddress: address, isConnected: true }),
 
-  setAuthToken: (token) =>
-    set({ authToken: token }),
+  setAuthResult: (token, walletAddress, loginStreak) =>
+    set({
+      authToken: token,
+      walletAddress,
+      isConnected: true,
+      isAuthenticated: true,
+      isAuthenticating: false,
+      loginStreak,
+    }),
 
-  setDisplayName: (name) =>
-    set({ displayName: name }),
+  setDisplayName: (name) => set({ displayName: name }),
 
-  setLoginStreak: (streak) =>
-    set({ loginStreak: streak }),
+  setLoginStreak: (streak) => set({ loginStreak: streak }),
+
+  setPendingTokens: (amount) => set({ pendingCrudeTokens: amount }),
+
+  setAuthenticating: (v) => set({ isAuthenticating: v }),
 
   disconnect: () =>
     set({
       walletAddress: null,
       displayName: null,
       isConnected: false,
+      isAuthenticated: false,
+      isAuthenticating: false,
       authToken: null,
       loginStreak: 0,
+      pendingCrudeTokens: 0,
     }),
-
-  setLoading: (loading) =>
-    set({ isLoading: loading }),
 }))

@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
+import { requireAuth } from '@/lib/auth-middleware'
 
 export async function POST(request: Request) {
+  // Require valid JWT — wallet address comes from the token, not the request body
+  const auth = requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  const { walletAddress } = auth
+
   try {
-    const { walletAddress } = await request.json()
-
-    if (!walletAddress) {
-      return NextResponse.json({ error: 'Missing walletAddress' }, { status: 400 })
-    }
-
     const supabase = getServiceSupabase()
 
-    // Load player data
     const { data: player, error: playerError } = await supabase
       .from('players')
       .select('*')
@@ -22,7 +21,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 })
     }
 
-    // Load game state
     const { data: gameState, error: gameError } = await supabase
       .from('game_states')
       .select('*')
@@ -33,25 +31,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Game state not found' }, { status: 404 })
     }
 
-    // Load upgrades
+    // Load upgrades and merge into a map
     const { data: upgrades } = await supabase
       .from('upgrades')
       .select('*')
       .eq('wallet_address', walletAddress)
 
-    // Load missions
-    const { data: missions } = await supabase
-      .from('missions')
-      .select('*')
-      .eq('wallet_address', walletAddress)
-
-    // Merge upgrades into a map
     const upgradeMap: Record<string, number> = {}
     if (upgrades) {
       for (const u of upgrades) {
         upgradeMap[u.upgrade_type] = u.level
       }
     }
+
+    const { data: missions } = await supabase
+      .from('missions')
+      .select('*')
+      .eq('wallet_address', walletAddress)
 
     return NextResponse.json({
       player: {

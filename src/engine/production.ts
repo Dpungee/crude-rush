@@ -8,12 +8,15 @@ const PRODUCER_TYPES = new Set(['oil_well', 'pump_jack', 'derrick'])
 
 /**
  * Calculate total crude oil production rate (barrels per second)
- * from all buildings, upgrades, and prestige multiplier.
+ * from all buildings, upgrades, prestige multiplier, and optional staking bonus.
+ *
+ * @param stakingMultiplier - from /api/game/staking-bonus (default 1.0 = no bonus)
  */
 export function calculateProductionRate(
   plots: GridCell[],
   upgrades: Record<UpgradeType, number>,
-  prestigeMultiplier: number
+  prestigeMultiplier: number,
+  stakingMultiplier = 1.0
 ): number {
   let totalProduction = 0
 
@@ -24,7 +27,7 @@ export function calculateProductionRate(
 
   const speedMultiplier = getExtractionSpeedMultiplier(upgrades.extraction_speed)
 
-  return totalProduction * speedMultiplier * prestigeMultiplier
+  return totalProduction * speedMultiplier * prestigeMultiplier * stakingMultiplier
 }
 
 /**
@@ -69,18 +72,21 @@ export function calculateRefineryRate(
 
 /**
  * Recalculate all derived stats from the current game state pieces.
+ *
+ * @param stakingMultiplier - from /api/game/staking-bonus (default 1.0)
  */
 export function recalculateDerivedStats(
   plots: GridCell[],
   upgrades: Record<UpgradeType, number>,
-  prestigeMultiplier: number
+  prestigeMultiplier: number,
+  stakingMultiplier = 1.0
 ): {
   productionRate: number
   storageCapacity: number
   refineryRate: number
 } {
   return {
-    productionRate: calculateProductionRate(plots, upgrades, prestigeMultiplier),
+    productionRate: calculateProductionRate(plots, upgrades, prestigeMultiplier, stakingMultiplier),
     storageCapacity: calculateStorageCapacity(plots, upgrades),
     refineryRate: calculateRefineryRate(plots, upgrades, prestigeMultiplier),
   }

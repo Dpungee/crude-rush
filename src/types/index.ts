@@ -20,7 +20,7 @@ export type {
 } from '@/engine/types'
 
 // UI-specific types
-export type PanelTab = 'market' | 'upgrades' | 'missions' | 'leaderboard' | 'prestige'
+export type PanelTab = 'market' | 'upgrades' | 'token' | 'missions' | 'leaderboard' | 'prestige'
 
 export interface Toast {
   id: string
