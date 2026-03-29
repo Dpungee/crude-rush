@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { GlobalEvent, EventModifiers } from '@/engine/types'
+import { registerStore } from '@/lib/game-services'
 
 interface EventState {
   activeEvents: GlobalEvent[]
@@ -48,3 +49,6 @@ export const useEventStore = create<EventState>((set, get) => ({
     return result
   },
 }))
+
+// Register so game-services can access without import
+registerStore('event', useEventStore)

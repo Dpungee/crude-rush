@@ -3,6 +3,7 @@ import { getServiceSupabase, isSupabaseConfigured } from '@/lib/supabase-server'
 import { requireAuth } from '@/lib/auth-middleware'
 import { calculateProductionRate, calculateStorageCapacity } from '@/engine/production'
 import { UPGRADE_DEFINITIONS } from '@/engine/upgrades'
+import { validateConstructionTimers } from '@/lib/economy'
 import {
   BARREL_MILESTONES,
   MAX_BUILDING_LEVEL,
@@ -199,6 +200,12 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── Construction timer validation ──────────────────────────────────────
+    // Prevent clients from shortening construction timers or fabricating
+    // completed constructions. Server timestamps are authoritative.
+    const serverPlots: GridCell[] = prevState?.plots_data ?? []
+    const validatedPlots = validateConstructionTimers(plots, serverPlots)
+
     // ── Upsert game state + update player stats in parallel ───────────────
     const dbNow = new Date().toISOString()
 
@@ -209,7 +216,7 @@ export async function POST(request: Request) {
         crude_oil: Math.max(0, gameState.crude_oil ?? 0),
         refined_oil: Math.max(0, gameState.refined_oil ?? 0),
         petrodollars: Math.max(0, gameState.petrodollars ?? 0),
-        plots_data: plots,
+        plots_data: validatedPlots,
         unlocked_tile_count: gameState.unlocked_tile_count ?? 1,
         upgrades_data: upgradesData,
         production_rate: serverProductionRate,

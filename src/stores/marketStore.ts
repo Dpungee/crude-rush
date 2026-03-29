@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { MarketState, MarketSnapshot } from '@/engine/market'
+import { registerStore } from '@/lib/game-services'
 
 interface MarketStoreState {
   crudeMult: number
@@ -52,10 +53,12 @@ export const useMarketStore = create<MarketStoreState>((set, get) => ({
   tickCountdown: () => {
     const { nextTickIn } = get()
     if (nextTickIn <= 1) {
-      // Time for a new tick — refetch
       get().fetchMarket()
     } else {
       set({ nextTickIn: nextTickIn - 1 })
     }
   },
 }))
+
+// Register so game-services can access without import
+registerStore('market', useMarketStore)
