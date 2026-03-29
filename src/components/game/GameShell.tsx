@@ -9,7 +9,9 @@ import { useUiStore } from '@/stores/uiStore'
 import { useMissionStore } from '@/stores/missionStore'
 import { createSignMessage } from '@/lib/wallet-auth'
 import { TICK_INTERVAL_MS, SAVE_INTERVAL_MS } from '@/engine/constants'
+import { useEventStore } from '@/stores/eventStore'
 import { GameGrid } from './GameGrid'
+import { EventBanner } from './EventBanner'
 import { TopBar } from '@/components/hud/TopBar'
 import { BottomBar } from '@/components/hud/BottomBar'
 import { SidePanel } from '@/components/panels/SidePanel'
@@ -223,6 +225,14 @@ export function GameShell() {
     return () => { if (saveRef.current) clearInterval(saveRef.current) }
   }, [isAuthenticated, saveGame])
 
+  // ── Event polling ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return
+    useEventStore.getState().fetchEvents()
+    const eventInterval = setInterval(() => useEventStore.getState().fetchEvents(), 60_000)
+    return () => clearInterval(eventInterval)
+  }, [isAuthenticated])
+
   // ── Save on tab blur / close ─────────────────────────────────────────
   useEffect(() => {
     if (!isAuthenticated) return
@@ -292,6 +302,7 @@ export function GameShell() {
 
   return (
     <div className="h-screen flex flex-col bg-oil-950 overflow-hidden">
+      <EventBanner />
       <TopBar />
 
       <div className="flex-1 flex overflow-hidden">

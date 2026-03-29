@@ -13,7 +13,8 @@ import {
   getAvailableBuildings,
 } from '@/engine/buildings'
 import type { BuildingType } from '@/engine/types'
-import { formatCommas, formatNumber } from '@/lib/utils'
+import { INSTANT_FINISH_COST_PER_SECOND } from '@/engine/constants'
+import { formatCommas, formatNumber, formatDuration } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 // ── Static Tailwind class maps (tree-shaking requires literal strings) ─────
@@ -98,12 +99,14 @@ export function BuildMenu() {
   const plot = plots.find((p) => p.x === selectedCell.x && p.y === selectedCell.y)
   if (!plot || plot.status !== 'unlocked') return null
 
+  const instantFinish = useGameStore((s) => s.instantFinish)
+
   const handleBuild = (type: BuildingType) => {
     const success = buildOnCell(selectedCell.x, selectedCell.y, type)
     if (success) {
       trackEvent('building_built', 1)
-      const def = BUILDING_DEFINITIONS[type]
-      addToast({ message: `${def.emoji} ${def.name} constructed! -$${formatCommas(getBuildingCost(type, 1))}`, type: 'success' })
+      const bDef = BUILDING_DEFINITIONS[type]
+      addToast({ message: `🔨 ${bDef.emoji} ${bDef.name} construction started!`, type: 'success' })
       clearSelection()
     }
   }
@@ -113,10 +116,66 @@ export function BuildMenu() {
     const success = upgradeBuilding(selectedCell.x, selectedCell.y)
     if (success) {
       trackEvent('building_upgraded', 1)
-      const def = BUILDING_DEFINITIONS[plot.building]
-      addToast({ message: `⬆️ ${def.name} → Lv.${plot.level + 1}`, type: 'success' })
+      const bDef = BUILDING_DEFINITIONS[plot.building]
+      addToast({ message: `🔨 ${bDef.name} upgrading to Lv.${plot.level + 1}…`, type: 'success' })
       clearSelection()
     }
+  }
+
+  const handleSpeedUp = () => {
+    const success = instantFinish(selectedCell.x, selectedCell.y)
+    if (success) {
+      addToast({ message: '⚡ Construction completed instantly!', type: 'reward' })
+      clearSelection()
+    }
+  }
+
+  // ── CONSTRUCTION IN PROGRESS VIEW ───────────────────────────────────────
+  if (plot.constructionEndsAt) {
+    const remainingMs = Math.max(0, new Date(plot.constructionEndsAt).getTime() - Date.now())
+    const remainingSec = Math.ceil(remainingMs / 1000)
+    const speedUpCost = remainingSec * INSTANT_FINISH_COST_PER_SECOND
+    const canAffordSpeedUp = petrodollars >= speedUpCost
+    const constructionDef = plot.constructionType ? BUILDING_DEFINITIONS[plot.constructionType] : null
+
+    return (
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-72">
+        <div className="bg-oil-900/95 border border-amber-700/40 rounded-xl p-4 shadow-2xl backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl production-pulse">{constructionDef?.emoji ?? '🔨'}</span>
+              <div>
+                <h3 className="font-bold text-foreground text-sm">
+                  {plot.building ? 'Upgrading' : 'Building'} {constructionDef?.name}
+                </h3>
+                <span className="text-[10px] text-amber-400/70">
+                  {plot.building ? `Lv.${plot.level} → Lv.${plot.constructionLevel}` : `New Lv.${plot.constructionLevel}`}
+                </span>
+              </div>
+            </div>
+            <button onClick={clearSelection} className="text-muted-foreground hover:text-foreground text-lg w-6 h-6 flex items-center justify-center rounded hover:bg-oil-700/50">×</button>
+          </div>
+
+          <div className="text-center mb-3">
+            <div className="text-2xl font-black text-amber-400 tabular-nums">{formatDuration(remainingSec)}</div>
+            <div className="text-[10px] text-muted-foreground">remaining</div>
+          </div>
+
+          <button
+            onClick={handleSpeedUp}
+            disabled={!canAffordSpeedUp}
+            className={cn(
+              'w-full py-2.5 rounded-lg text-sm font-bold transition-all',
+              canAffordSpeedUp
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-600/40 hover:bg-amber-600/30 active:scale-[0.98]'
+                : 'bg-oil-700/30 text-muted-foreground/40 border border-oil-700/20 cursor-not-allowed'
+            )}
+          >
+            ⚡ Speed Up — ${formatCommas(speedUpCost)}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // ── UPGRADE VIEW ─────────────────────────────────────────────────────────

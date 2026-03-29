@@ -41,6 +41,31 @@ export interface GridCell {
   ring: number
   /** Tile trait affecting production: normal, rich, gusher, barren */
   trait: 'normal' | 'rich' | 'gusher' | 'barren'
+  /** Construction: building type being built (null = no active construction) */
+  constructionType?: BuildingType | null
+  /** Construction: target level when complete */
+  constructionLevel?: number
+  /** Construction: ISO timestamp when construction finishes */
+  constructionEndsAt?: string | null
+}
+
+// ── Global Events ─────────────────────────────────────────────────────────────
+export interface EventModifiers {
+  productionMultiplier?: number
+  sellPriceMultiplier?: number
+  refinerySpeedMultiplier?: number
+  upgradeTimeMultiplier?: number
+  tokenRewardMultiplier?: number
+}
+
+export interface GlobalEvent {
+  id: string
+  name: string
+  description: string
+  emoji: string
+  startsAt: string
+  endsAt: string
+  modifiers: EventModifiers
 }
 
 export interface BuildingDefinition {

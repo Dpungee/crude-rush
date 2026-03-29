@@ -129,3 +129,28 @@ export const XP_REWARDS = {
 
 export const VALIDATION_TOLERANCE = 1.15
 export const MAX_BUILDING_LEVEL = 10
+
+// ─── Construction Timers ──────────────────────────────────────────────────────
+// Base seconds for each building type. Formula: base × targetLevel^1.5
+import type { BuildingType } from './types'
+
+export const CONSTRUCTION_BASE_SECONDS: Record<BuildingType, number> = {
+  oil_well: 10,       // L1: 10s, L5: 112s, L10: 316s (~5min)
+  pump_jack: 30,      // L1: 30s, L10: 949s (~16min)
+  derrick: 60,        // L1: 60s, L10: 1897s (~32min)
+  oil_terminal: 120,  // L1: 120s, L10: 3795s (~63min)
+  storage_tank: 15,   // L1: 15s, L10: 474s (~8min)
+  refinery: 45,       // L1: 45s, L10: 1423s (~24min)
+}
+
+/** Construction time in seconds: base × targetLevel^1.5 */
+export function getConstructionTime(type: BuildingType, targetLevel: number): number {
+  const base = CONSTRUCTION_BASE_SECONDS[type]
+  return Math.floor(base * Math.pow(Math.max(1, targetLevel), 1.5))
+}
+
+/** Max simultaneous constructions (1 free, expandable later) */
+export const MAX_CONSTRUCTION_SLOTS = 1
+
+/** Cost per remaining second to instant-finish */
+export const INSTANT_FINISH_COST_PER_SECOND = 10

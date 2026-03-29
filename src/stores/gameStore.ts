@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { GameState, BuildingType, UpgradeType, ServerGameState } from '@/engine/types'
+import type { GameState, BuildingType, UpgradeType, ServerGameState, EventModifiers } from '@/engine/types'
 import { tick } from '@/engine/tick'
 import { recalculateDerivedStats } from '@/engine/production'
 import { getBuildingCost, getBuildingUpgradeCost, isBuildingAvailable } from '@/engine/buildings'
@@ -18,6 +18,9 @@ import {
   BARREL_MILESTONES,
   DAILY_REWARDS,
   MAX_BUILDING_LEVEL,
+  MAX_CONSTRUCTION_SLOTS,
+  getConstructionTime,
+  INSTANT_FINISH_COST_PER_SECOND,
 } from '@/engine/constants'
 
 // Use the shared createInitialUpgrades from engine/upgrades.ts (imported above)
@@ -62,6 +65,8 @@ interface GameActions {
   // Building actions
   buildOnCell: (x: number, y: number, building: BuildingType) => boolean
   upgradeBuilding: (x: number, y: number) => boolean
+  completeConstruction: (x: number, y: number) => void
+  instantFinish: (x: number, y: number) => boolean
 
   // Upgrade actions
   purchaseUpgrade: (type: UpgradeType) => boolean
@@ -132,6 +137,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
 
     get()._applyMilestoneBonuses(prevBarrels, newBarrels)
+
+    // Auto-complete expired constructions
+    const nowMs = Date.now()
+    for (const plot of get().plots) {
+      if (plot.constructionEndsAt && new Date(plot.constructionEndsAt).getTime() <= nowMs) {
+        get().completeConstruction(plot.x, plot.y)
+      }
+    }
   },
 
   unlockTile: (x, y) => {
@@ -180,37 +193,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const plot = state.plots[plotIndex]
     if (plot.status !== 'unlocked') return false
-    if (plot.building !== null) return false
+    if (plot.building !== null || plot.constructionType) return false
 
-    // Enforce unlock tier — prevents building premium buildings before
-    // the required number of tiles is unlocked (client-side protection;
-    // server validates the same via plots_data on save).
     if (!isBuildingAvailable(buildingType, state.unlockedTileCount)) return false
+
+    // Check construction slot limit
+    const activeConstructions = state.plots.filter((p) => p.constructionEndsAt).length
+    if (activeConstructions >= MAX_CONSTRUCTION_SLOTS) return false
 
     const cost = getBuildingCost(buildingType, 1)
     if (state.petrodollars < cost) return false
 
+    const constructionTime = getConstructionTime(buildingType, 1)
+    const endsAt = new Date(Date.now() + constructionTime * 1000).toISOString()
+
     const newPlots = [...state.plots]
     newPlots[plotIndex] = {
       ...plot,
-      building: buildingType,
-      level: 1,
-      builtAt: new Date().toISOString(),
+      // Building NOT set until construction completes — no production yet
+      constructionType: buildingType,
+      constructionLevel: 1,
+      constructionEndsAt: endsAt,
     }
-
-    const derived = recalculateDerivedStats(
-      newPlots, state.upgrades, state.prestigeMultiplier,
-      get().stakingMultiplier, state.milestoneProductionBonus
-    )
 
     set({
       plots: newPlots,
       petrodollars: state.petrodollars - cost,
-      ...derived,
       version: state.version + 1,
     })
 
-    get()._awardXP(XP_BUILDING_BUILT)
+    // XP awarded on completion, not start
     return true
   },
 
@@ -221,29 +233,87 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const plot = state.plots[plotIndex]
     if (!plot.building) return false
-
-    // Enforce hard cap on building levels
+    if (plot.constructionEndsAt) return false // already upgrading
     if (plot.level >= MAX_BUILDING_LEVEL) return false
+
+    // Check construction slot limit
+    const activeConstructions = state.plots.filter((p) => p.constructionEndsAt).length
+    if (activeConstructions >= MAX_CONSTRUCTION_SLOTS) return false
 
     const cost = getBuildingUpgradeCost(plot.building, plot.level)
     if (state.petrodollars < cost) return false
 
+    const targetLevel = plot.level + 1
+    const constructionTime = getConstructionTime(plot.building, targetLevel)
+    const endsAt = new Date(Date.now() + constructionTime * 1000).toISOString()
+
     const newPlots = [...state.plots]
-    newPlots[plotIndex] = { ...plot, level: plot.level + 1 }
+    newPlots[plotIndex] = {
+      ...plot,
+      // Keep current building+level — production continues at current rate
+      constructionType: plot.building,
+      constructionLevel: targetLevel,
+      constructionEndsAt: endsAt,
+    }
+
+    set({
+      plots: newPlots,
+      petrodollars: state.petrodollars - cost,
+      version: state.version + 1,
+    })
+
+    return true
+  },
+
+  /** Complete a construction if its timer has expired */
+  completeConstruction: (x: number, y: number) => {
+    const state = get()
+    const plotIndex = state.plots.findIndex((p) => p.x === x && p.y === y)
+    if (plotIndex === -1) return
+
+    const plot = state.plots[plotIndex]
+    if (!plot.constructionEndsAt || !plot.constructionType) return
+    if (new Date(plot.constructionEndsAt).getTime() > Date.now()) return
+
+    const isNewBuild = plot.building === null
+    const newPlots = [...state.plots]
+    newPlots[plotIndex] = {
+      ...plot,
+      building: plot.constructionType,
+      level: plot.constructionLevel ?? 1,
+      builtAt: plot.builtAt ?? new Date().toISOString(),
+      constructionType: null,
+      constructionLevel: undefined,
+      constructionEndsAt: null,
+    }
 
     const derived = recalculateDerivedStats(
       newPlots, state.upgrades, state.prestigeMultiplier,
       get().stakingMultiplier, state.milestoneProductionBonus
     )
 
-    set({
-      plots: newPlots,
-      petrodollars: state.petrodollars - cost,
-      ...derived,
-      version: state.version + 1,
-    })
+    set({ plots: newPlots, ...derived })
+    get()._awardXP(isNewBuild ? XP_BUILDING_BUILT : XP_BUILDING_UPGRADED)
+  },
 
-    get()._awardXP(XP_BUILDING_UPGRADED)
+  /** Spend petrodollars to instantly finish a construction */
+  instantFinish: (x: number, y: number) => {
+    const state = get()
+    const plot = state.plots.find((p) => p.x === x && p.y === y)
+    if (!plot?.constructionEndsAt) return false
+
+    const remainingMs = Math.max(0, new Date(plot.constructionEndsAt).getTime() - Date.now())
+    const remainingSec = Math.ceil(remainingMs / 1000)
+    const cost = remainingSec * INSTANT_FINISH_COST_PER_SECOND
+
+    if (state.petrodollars < cost) return false
+
+    // Set the construction end to now so completeConstruction picks it up
+    const plotIndex = state.plots.findIndex((p) => p.x === x && p.y === y)
+    const newPlots = [...state.plots]
+    newPlots[plotIndex] = { ...newPlots[plotIndex], constructionEndsAt: new Date().toISOString() }
+    set({ plots: newPlots, petrodollars: state.petrodollars - cost })
+    get().completeConstruction(x, y)
     return true
   },
 

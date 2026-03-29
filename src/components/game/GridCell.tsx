@@ -133,10 +133,14 @@ export function GridCell({ cell }: GridCellProps) {
   }
 
   // Detect if this is the first empty buildable tile (beacon hint for new players)
-  const isFirstEmptyPlot = cell.status === 'unlocked' && !cell.building && (() => {
-    const firstEmpty = plots.find((p) => p.status === 'unlocked' && !p.building)
+  const isFirstEmptyPlot = cell.status === 'unlocked' && !cell.building && !cell.constructionType && (() => {
+    const firstEmpty = plots.find((p) => p.status === 'unlocked' && !p.building && !p.constructionType)
     return firstEmpty?.x === cell.x && firstEmpty?.y === cell.y
   })()
+
+  // Construction state
+  const isUnderConstruction = !!cell.constructionEndsAt
+  const constructionDef = cell.constructionType ? BUILDING_DEFINITIONS[cell.constructionType] : null
 
   const def = cell.building ? BUILDING_DEFINITIONS[cell.building] : null
   const isProducer = cell.building && ['oil_well', 'pump_jack', 'derrick'].includes(cell.building)
@@ -275,10 +279,24 @@ export function GridCell({ cell }: GridCellProps) {
           {isTerminal && (
             <div className="absolute inset-0 rounded-md border border-yellow-400/20 animate-pulse pointer-events-none" />
           )}
+
+          {/* Construction/upgrade in progress indicator */}
+          {isUnderConstruction && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-oil-700/50">
+              <div className="h-full bg-amber-500 production-pulse" style={{ width: '100%' }} />
+            </div>
+          )}
         </>
       ) : (
-        /* Empty unlocked — tap to build */
-        isFirstEmptyPlot ? (
+        /* Empty or under construction */
+        isUnderConstruction && constructionDef ? (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[1rem] leading-none select-none opacity-50 production-pulse">
+              {constructionDef.emoji}
+            </span>
+            <span className="text-[6px] font-bold text-amber-400/60 leading-none">🔨</span>
+          </div>
+        ) : isFirstEmptyPlot ? (
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-lg text-amber-500/80 leading-none select-none">+</span>
             <span className="text-[7px] font-bold text-amber-500/60 leading-none">TAP</span>
