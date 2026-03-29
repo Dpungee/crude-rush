@@ -4,72 +4,48 @@ import { useGameStore } from '@/stores/gameStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { NextGoalCard } from './NextGoalCard'
 
 export function BottomBar() {
   const productionRate = useGameStore((s) => s.productionRate)
   const refineryRate = useGameStore((s) => s.refineryRate)
-  const plots = useGameStore((s) => s.plots)
-  const unlockedTileCount = useGameStore((s) => s.unlockedTileCount)
   const lifetimeBarrels = useGameStore((s) => s.lifetimeBarrels)
-  const prestigeLevel = useGameStore((s) => s.prestigeLevel)
-  const prestigeMultiplier = useGameStore((s) => s.prestigeMultiplier)
   const pendingTokens = usePlayerStore((s) => s.pendingCrudeTokens)
 
-  const buildingCount = plots.filter((p) => p.building !== null).length
-  const tokenDisplay = pendingTokens > 0 ? (pendingTokens / 1_000_000).toFixed(1) : '0'
+  const tokenDisplay = pendingTokens > 0 ? (pendingTokens / 1_000_000).toFixed(1) : null
 
   return (
-    <div className="h-10 bg-oil-900/95 border-t border-oil-800/60 flex items-center justify-between px-4 text-[10px] backdrop-blur-sm">
-      {/* Left: Production stats */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px]">⚡</span>
-          <span className={cn(
-            'font-bold tabular-nums',
-            productionRate > 0 ? 'text-crude-400' : 'text-oil-600'
-          )}>
-            {formatNumber(productionRate)} bbl/s
-          </span>
+    <div className="bg-oil-900/95 border-t border-oil-800/60 backdrop-blur-sm px-3 py-1.5">
+      <div className="flex items-center gap-3">
+        {/* Left: Next goal card */}
+        <div className="flex-1 min-w-0">
+          <NextGoalCard />
         </div>
 
-        {refineryRate > 0 && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px]">🔥</span>
-            <span className="font-bold text-red-400 tabular-nums">
-              {formatNumber(refineryRate / 2)}/s refined
-            </span>
+        {/* Right: Compact live stats */}
+        <div className="flex items-center gap-3 shrink-0 text-[10px]">
+          {productionRate > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-[8px]">⚡</span>
+              <span className="font-bold text-crude-400 tabular-nums">{formatNumber(productionRate)}/s</span>
+            </div>
+          )}
+          {refineryRate > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-[8px]">🔥</span>
+              <span className="font-bold text-red-400 tabular-nums">{formatNumber(refineryRate / 2)}/s</span>
+            </div>
+          )}
+          <div className="text-muted-foreground tabular-nums">
+            {formatNumber(lifetimeBarrels)} bbl
           </div>
-        )}
-
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <span className="font-medium">{buildingCount}</span>
-          <span className="opacity-50">/</span>
-          <span className="font-medium">{unlockedTileCount}</span>
-          <span className="opacity-50 ml-0.5">plots</span>
+          {tokenDisplay && (
+            <div className="flex items-center gap-0.5 text-crude-400 font-bold">
+              <span className="text-[8px]">🪙</span>
+              {tokenDisplay}
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Right: Lifetime stats + token + prestige */}
-      <div className="flex items-center gap-4">
-        <div className="text-muted-foreground">
-          <span className="tabular-nums font-medium text-foreground/80">{formatNumber(lifetimeBarrels)}</span>
-          <span className="opacity-50 ml-0.5">lifetime bbl</span>
-        </div>
-
-        {pendingTokens > 0 && (
-          <div className="flex items-center gap-1 bg-crude-950/40 px-1.5 py-0.5 rounded border border-crude-800/30">
-            <span className="text-[9px]">🪙</span>
-            <span className="font-bold text-crude-400 tabular-nums">{tokenDisplay}</span>
-          </div>
-        )}
-
-        {prestigeLevel > 0 && (
-          <div className="flex items-center gap-1 bg-violet-950/30 px-1.5 py-0.5 rounded border border-violet-800/30">
-            <span className="text-[9px]">🌟</span>
-            <span className="font-bold text-violet-400 tabular-nums">P{prestigeLevel}</span>
-            <span className="text-violet-500/50 tabular-nums">{prestigeMultiplier.toFixed(1)}x</span>
-          </div>
-        )}
       </div>
     </div>
   )

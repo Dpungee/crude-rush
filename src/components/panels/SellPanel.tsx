@@ -37,14 +37,14 @@ export function SellPanel() {
     if (crudeOil < 1) return
     sellCrudeOil(crudeOil)
     trackEvent('oil_sold', 1)
-    addToast({ message: `Sold ${formatNumber(crudeOil)} bbl → +$${formatCommas(totalCrudeValue)}`, type: 'reward' })
+    addToast({ message: `💰 +$${formatCommas(totalCrudeValue)} from ${formatNumber(crudeOil)} bbl crude`, type: 'reward', duration: 4000 })
   }
 
   const handleSellRefined = () => {
     if (refinedOil < 1) return
     sellRefinedOil(refinedOil)
     trackEvent('oil_sold', 1)
-    addToast({ message: `Sold ${formatNumber(refinedOil)} bbl refined → +$${formatCommas(totalRefinedValue)}`, type: 'reward' })
+    addToast({ message: `💰 +$${formatCommas(totalRefinedValue)} from ${formatNumber(refinedOil)} bbl refined`, type: 'reward', duration: 4000 })
   }
 
   return (

@@ -33,7 +33,7 @@ interface UiState {
 let toastId = 0
 
 export const useUiStore = create<UiState>((set, get) => ({
-  activeTab: 'market',
+  activeTab: 'upgrades',  // Start on upgrades — new players have nothing to sell
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   selectedCell: null,
