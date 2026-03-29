@@ -13,6 +13,7 @@ import {
 } from '@/engine/buildings'
 import { cn, formatNumber, formatCommas } from '@/lib/utils'
 import { RING_NAMES } from '@/engine/constants'
+import { BuildingRenderer, ConstructionPreview } from '@/components/buildings/BuildingRenderer'
 
 interface GridCellProps {
   cell: GridCellType
@@ -246,22 +247,17 @@ export function GridCell({ cell }: GridCellProps) {
             </div>
           )}
 
-          {/* Building icon */}
-          <span
-            className={cn(
-              'text-[1.3rem] leading-none select-none',
-              cell.building === 'oil_well' && 'animate-pump',
-              isRefinery && 'production-pulse',
-              isTerminal && 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]'
-            )}
-          >
-            {def.emoji}
-          </span>
+          {/* Visual building component */}
+          <BuildingRenderer
+            type={cell.building!}
+            level={cell.level}
+            isUpgrading={isUnderConstruction}
+          />
 
           {/* Production metric */}
           {metric && (
             <span className={cn(
-              'text-[7.5px] font-bold leading-none tabular-nums mt-0.5',
+              'absolute bottom-[2px] text-[7px] font-bold leading-none tabular-nums',
               BUILDING_METRIC_COLOR[cell.building!]
             )}>
               {metric}
@@ -269,32 +265,17 @@ export function GridCell({ cell }: GridCellProps) {
           )}
 
           {/* Active production bar — thin bottom strip */}
-          {(isProducer || isRefinery) && (
+          {(isProducer || isRefinery) && !isUnderConstruction && (
             <div className="absolute bottom-0 left-0 right-0 h-[2px] opacity-80">
               <div className={cn('h-full w-full animate-pulse', BUILDING_BAR[cell.building!])} />
-            </div>
-          )}
-
-          {/* Oil terminal: inner aura border */}
-          {isTerminal && (
-            <div className="absolute inset-0 rounded-md border border-yellow-400/20 animate-pulse pointer-events-none" />
-          )}
-
-          {/* Construction/upgrade in progress indicator */}
-          {isUnderConstruction && (
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-oil-700/50">
-              <div className="h-full bg-amber-500 production-pulse" style={{ width: '100%' }} />
             </div>
           )}
         </>
       ) : (
         /* Empty or under construction */
         isUnderConstruction && constructionDef ? (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[1rem] leading-none select-none opacity-50 production-pulse">
-              {constructionDef.emoji}
-            </span>
-            <span className="text-[6px] font-bold text-amber-400/60 leading-none">🔨</span>
+          <div className="w-full h-full flex items-center justify-center">
+            <ConstructionPreview type={cell.constructionType!} />
           </div>
         ) : isFirstEmptyPlot ? (
           <div className="flex flex-col items-center gap-0.5">
