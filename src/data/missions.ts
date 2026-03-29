@@ -1,7 +1,7 @@
 import type { MissionDefinition } from '@/engine/types'
 
 export const MISSION_DEFINITIONS: MissionDefinition[] = [
-  // Early game
+  // ── Early game — no token rewards (players just getting started) ───────────
   {
     key: 'first_well',
     name: 'First Strike',
@@ -9,6 +9,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 1,
     rewardType: 'petrodollars',
     rewardAmount: 50,
+    tokenMicroReward: 0,
     trackEvent: 'building_built',
     frequency: 'lifetime',
   },
@@ -19,6 +20,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 100,
     rewardType: 'petrodollars',
     rewardAmount: 100,
+    tokenMicroReward: 0,
     trackEvent: 'barrels_produced',
     frequency: 'lifetime',
   },
@@ -29,6 +31,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 3,
     rewardType: 'petrodollars',
     rewardAmount: 150,
+    tokenMicroReward: 0,
     trackEvent: 'tile_unlocked',
     frequency: 'lifetime',
   },
@@ -39,6 +42,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 3,
     rewardType: 'petrodollars',
     rewardAmount: 75,
+    tokenMicroReward: 0,
     trackEvent: 'building_upgraded',
     frequency: 'lifetime',
   },
@@ -49,6 +53,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 1_000,
     rewardType: 'petrodollars',
     rewardAmount: 300,
+    tokenMicroReward: 1_000_000,  // 1 $CRUDE — first token reward
     trackEvent: 'barrels_produced',
     frequency: 'lifetime',
   },
@@ -59,11 +64,12 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 5,
     rewardType: 'petrodollars',
     rewardAmount: 200,
+    tokenMicroReward: 0,
     trackEvent: 'building_built',
     frequency: 'lifetime',
   },
 
-  // Mid game
+  // ── Mid game ───────────────────────────────────────────────────────────────
   {
     key: 'unlock_10',
     name: 'Empire Builder',
@@ -71,6 +77,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 10,
     rewardType: 'petrodollars',
     rewardAmount: 500,
+    tokenMicroReward: 2_000_000,  // 2 $CRUDE
     trackEvent: 'tile_unlocked',
     frequency: 'lifetime',
   },
@@ -81,6 +88,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 10_000,
     rewardType: 'petrodollars',
     rewardAmount: 1_000,
+    tokenMicroReward: 5_000_000,  // 5 $CRUDE
     trackEvent: 'barrels_produced',
     frequency: 'lifetime',
   },
@@ -91,6 +99,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 100,
     rewardType: 'petrodollars',
     rewardAmount: 500,
+    tokenMicroReward: 3_000_000,  // 3 $CRUDE
     trackEvent: 'oil_refined',
     frequency: 'lifetime',
   },
@@ -101,6 +110,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 10,
     rewardType: 'petrodollars',
     rewardAmount: 400,
+    tokenMicroReward: 2_000_000,  // 2 $CRUDE
     trackEvent: 'building_upgraded',
     frequency: 'lifetime',
   },
@@ -111,11 +121,12 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 5,
     rewardType: 'petrodollars',
     rewardAmount: 350,
+    tokenMicroReward: 2_000_000,  // 2 $CRUDE
     trackEvent: 'upgrade_purchased',
     frequency: 'lifetime',
   },
 
-  // Late game
+  // ── Late game ──────────────────────────────────────────────────────────────
   {
     key: 'drill_100000',
     name: 'Black Gold Legend',
@@ -123,6 +134,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 100_000,
     rewardType: 'petrodollars',
     rewardAmount: 5_000,
+    tokenMicroReward: 25_000_000,  // 25 $CRUDE
     trackEvent: 'barrels_produced',
     frequency: 'lifetime',
   },
@@ -133,6 +145,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 10,
     rewardType: 'petrodollars',
     rewardAmount: 750,
+    tokenMicroReward: 5_000_000,  // 5 $CRUDE
     trackEvent: 'oil_sold',
     frequency: 'lifetime',
   },
@@ -143,6 +156,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 1,
     rewardType: 'petrodollars',
     rewardAmount: 2_000,
+    tokenMicroReward: 50_000_000,  // 50 $CRUDE — major milestone
     trackEvent: 'prestige_reset',
     frequency: 'lifetime',
   },
@@ -153,6 +167,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 1_000_000,
     rewardType: 'petrodollars',
     rewardAmount: 25_000,
+    tokenMicroReward: 250_000_000,  // 250 $CRUDE
     trackEvent: 'barrels_produced',
     frequency: 'lifetime',
   },
@@ -163,6 +178,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     target: 25,
     rewardType: 'petrodollars',
     rewardAmount: 3_000,
+    tokenMicroReward: 25_000_000,  // 25 $CRUDE
     trackEvent: 'tile_unlocked',
     frequency: 'lifetime',
   },

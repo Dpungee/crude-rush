@@ -7,7 +7,6 @@ import { useGameStore, createInitialGameState } from '@/stores/gameStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useMissionStore } from '@/stores/missionStore'
-import { calculateOfflineIncome } from '@/engine/offline'
 import { createSignMessage } from '@/lib/wallet-auth'
 import { TICK_INTERVAL_MS, SAVE_INTERVAL_MS } from '@/engine/constants'
 import { GameGrid } from './GameGrid'
@@ -24,73 +23,65 @@ export function GameShell() {
 
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const saveRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const authRef = useRef(false)  // prevent double-auth on StrictMode
+  const authRef = useRef(false)
 
-  const gameTick = useGameStore((s) => s.tick)
-  const hydrate = useGameStore((s) => s.hydrate)
-  const serialize = useGameStore((s) => s.serialize)
+  const gameTick        = useGameStore((s) => s.tick)
+  const hydrate         = useGameStore((s) => s.hydrate)
+  const serialize       = useGameStore((s) => s.serialize)
+  const setStakingMultiplier = useGameStore((s) => s.setStakingMultiplier)
   const setOfflineIncome = useUiStore((s) => s.setOfflineIncome)
-  const addToast = useUiStore((s) => s.addToast)
 
-  const setAuthResult = usePlayerStore((s) => s.setAuthResult)
+  const setAuthResult    = usePlayerStore((s) => s.setAuthResult)
   const setAuthenticating = usePlayerStore((s) => s.setAuthenticating)
+  const setAuthError     = usePlayerStore((s) => s.setAuthError)
   const setPendingTokens = usePlayerStore((s) => s.setPendingTokens)
-  const isAuthenticated = usePlayerStore((s) => s.isAuthenticated)
-  const authToken = usePlayerStore((s) => s.authToken)
+  const setTotalEarnedTokens = usePlayerStore((s) => s.setTotalEarnedTokens)
+  const setClaimCooldown = usePlayerStore((s) => s.setClaimCooldown)
+  const isAuthenticated  = usePlayerStore((s) => s.isAuthenticated)
+  const authError        = usePlayerStore((s) => s.authError)
   const playerDisconnect = usePlayerStore((s) => s.disconnect)
 
-  // ─── Sign-in flow: nonce → sign → verify → JWT ──────────────────────────
-  useEffect(() => {
-    if (!walletAddress || !signMessage || authRef.current) return
-
-    authRef.current = true
-    setAuthenticating(true)
-
-    async function signIn() {
+  // ── Load $CRUDE token balance from shadow ledger ───────────────────────
+  const loadTokenBalance = useCallback(
+    async (token: string) => {
       try {
-        // 1. Request nonce
-        const nonceRes = await fetch('/api/auth/nonce', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publicKey: walletAddress }),
+        const res = await fetch('/api/token/balance', {
+          headers: { Authorization: `Bearer ${token}` },
         })
-        const { nonce } = await nonceRes.json()
-
-        // 2. Sign with Phantom
-        const message = createSignMessage(nonce)
-        const messageBytes = new TextEncoder().encode(message)
-        const signatureBytes = await signMessage!(messageBytes)
-        const signature = bs58.encode(signatureBytes)
-
-        // 3. Verify on server → receive JWT
-        const verifyRes = await fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publicKey: walletAddress, signature, nonce }),
-        })
-        const verifyData = await verifyRes.json()
-
-        if (!verifyRes.ok || !verifyData.token) {
-          throw new Error(verifyData.error || 'Auth failed')
+        if (res.ok) {
+          const data = await res.json()
+          setPendingTokens(Number(data.balance ?? 0))
+          setTotalEarnedTokens(Number(data.totalEarned ?? 0))
+          setClaimCooldown(data.cooldownExpiresAt ?? null)
         }
-
-        setAuthResult(verifyData.token, walletAddress, verifyData.loginStreak)
-
-        // 4. Load game state using JWT
-        await loadGame(verifyData.token)
-      } catch (err) {
-        console.error('Sign-in failed:', err)
-        addToast({ message: 'Sign-in failed. Please reconnect.', type: 'error' })
-        setAuthenticating(false)
-        authRef.current = false
+      } catch {
+        // Non-critical
       }
-    }
+    },
+    [setPendingTokens, setTotalEarnedTokens, setClaimCooldown]
+  )
 
-    signIn()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletAddress])
+  // ── Load staking multiplier ────────────────────────────────────────────
+  const loadStakingBonus = useCallback(
+    async (token: string) => {
+      try {
+        const res = await fetch('/api/game/staking-bonus', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const { multiplier } = await res.json()
+          if (typeof multiplier === 'number' && multiplier >= 1.0) {
+            setStakingMultiplier(multiplier)
+          }
+        }
+      } catch {
+        // Non-critical — staking defaults to 1.0×
+      }
+    },
+    [setStakingMultiplier]
+  )
 
-  // ─── Load game ──────────────────────────────────────────────────────────
+  // ── Load game ────────────────────────────────────────────────────────
   const loadGame = useCallback(
     async (token: string) => {
       try {
@@ -104,23 +95,14 @@ export function GameShell() {
 
         if (res.ok) {
           const data = await res.json()
+
           hydrate(data.gameState)
 
-          // Apply offline income
-          const state = useGameStore.getState()
-          const offlineResult = calculateOfflineIncome(state)
-
-          if (offlineResult.secondsOffline > 10 && offlineResult.crudeEarned > 0) {
-            useGameStore.setState({
-              crudeOil: offlineResult.state.crudeOil,
-              refinedOil: offlineResult.state.refinedOil,
-              lifetimeBarrels: offlineResult.state.lifetimeBarrels,
-              lastTickAt: offlineResult.state.lastTickAt,
-            })
+          if (data.offlineIncome && data.offlineIncome.crude > 0) {
             setOfflineIncome({
-              crude: offlineResult.crudeEarned,
-              refined: offlineResult.refinedEarned,
-              seconds: offlineResult.secondsOffline,
+              crude:   data.offlineIncome.crude,
+              refined: data.offlineIncome.refined,
+              seconds: data.offlineIncome.seconds,
             })
           }
 
@@ -134,10 +116,10 @@ export function GameShell() {
             usePlayerStore.getState().setLoginStreak(data.player.loginStreak)
           }
 
-          // Load token balance
+          // Non-critical background loads
           loadTokenBalance(token)
+          loadStakingBonus(token)
         } else {
-          // New player or load failed — start fresh
           useGameStore.setState(createInitialGameState())
           useMissionStore.getState().initializeMissions()
         }
@@ -147,28 +129,61 @@ export function GameShell() {
         useMissionStore.getState().initializeMissions()
       }
     },
-    [hydrate, setOfflineIncome]
+    [hydrate, setOfflineIncome, loadTokenBalance, loadStakingBonus]
   )
 
-  // ─── Load $CRUDE token balance from shadow ledger ────────────────────────
-  const loadTokenBalance = useCallback(
-    async (token: string) => {
-      try {
-        const res = await fetch('/api/token/balance', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (res.ok) {
-          const { balance } = await res.json()
-          setPendingTokens(balance)
-        }
-      } catch {
-        // Non-critical — ignore
+  // ── Sign-in flow ────────────────────────────────────────────────────
+  const signIn = useCallback(async () => {
+    if (!walletAddress || !signMessage) return
+
+    authRef.current = true
+    setAuthenticating(true)
+    setAuthError(null)
+
+    try {
+      const nonceRes = await fetch('/api/auth/nonce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicKey: walletAddress }),
+      })
+      if (!nonceRes.ok) throw new Error('Failed to get nonce')
+      const { nonce } = await nonceRes.json()
+
+      const message = createSignMessage(nonce)
+      const messageBytes = new TextEncoder().encode(message)
+      const rawSig = await signMessage(messageBytes)
+      const signatureBytes =
+        rawSig instanceof Uint8Array ? rawSig : (rawSig as { signature: Uint8Array }).signature
+      const signature = bs58.encode(signatureBytes)
+
+      const verifyRes = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicKey: walletAddress, signature, nonce }),
+      })
+      const verifyData = await verifyRes.json()
+
+      if (!verifyRes.ok || !verifyData.token) {
+        throw new Error(verifyData.error || 'Verification failed')
       }
-    },
-    [setPendingTokens]
-  )
 
-  // ─── Save function ───────────────────────────────────────────────────────
+      setAuthResult(verifyData.token, walletAddress, verifyData.loginStreak)
+      await loadGame(verifyData.token)
+    } catch (err) {
+      console.error('Sign-in failed:', err)
+      const msg = err instanceof Error ? err.message : 'Sign-in failed. Please reconnect.'
+      setAuthError(msg)
+      authRef.current = false
+    }
+  }, [walletAddress, signMessage, setAuthResult, setAuthenticating, setAuthError, loadGame])
+
+  useEffect(() => {
+    if (!walletAddress || !signMessage || authRef.current) return
+    signIn()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletAddress])
+
+  // ── Save function — includes mission progress ────────────────────────
   const saveGame = useCallback(async () => {
     const token = usePlayerStore.getState().authToken
     if (!token) return
@@ -176,6 +191,7 @@ export function GameShell() {
     try {
       const gameState = serialize()
       const upgrades = useGameStore.getState().upgrades
+      const missions = useMissionStore.getState().missions
 
       await fetch('/api/game/save', {
         method: 'POST',
@@ -183,36 +199,35 @@ export function GameShell() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ gameState: { ...gameState, upgrades } }),
+        body: JSON.stringify({
+          gameState: { ...gameState, upgrades },
+          missions,  // included so server can verify mission claims
+        }),
       })
     } catch (err) {
       console.error('Failed to save:', err)
     }
   }, [serialize])
 
-  // ─── Tick loop ───────────────────────────────────────────────────────────
+  // ── Tick loop ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isAuthenticated) return
-
     tickRef.current = setInterval(gameTick, TICK_INTERVAL_MS)
     return () => { if (tickRef.current) clearInterval(tickRef.current) }
   }, [isAuthenticated, gameTick])
 
-  // ─── Save loop ───────────────────────────────────────────────────────────
+  // ── Save loop ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isAuthenticated) return
-
     saveRef.current = setInterval(saveGame, SAVE_INTERVAL_MS)
     return () => { if (saveRef.current) clearInterval(saveRef.current) }
   }, [isAuthenticated, saveGame])
 
-  // ─── Save on tab blur / close ────────────────────────────────────────────
+  // ── Save on tab blur / close ─────────────────────────────────────────
   useEffect(() => {
     if (!isAuthenticated) return
-
     const onHide = () => { if (document.hidden) saveGame() }
     const onUnload = () => saveGame()
-
     document.addEventListener('visibilitychange', onHide)
     window.addEventListener('beforeunload', onUnload)
     return () => {
@@ -221,7 +236,7 @@ export function GameShell() {
     }
   }, [isAuthenticated, saveGame])
 
-  // ─── Wallet disconnect sync ──────────────────────────────────────────────
+  // ── Wallet disconnect sync ───────────────────────────────────────────
   useEffect(() => {
     if (!publicKey) {
       authRef.current = false
@@ -229,17 +244,34 @@ export function GameShell() {
     }
   }, [publicKey, playerDisconnect])
 
-  // ─── Loading / auth spinner ──────────────────────────────────────────────
+  // ── Loading / auth states ────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-oil-950 gap-4">
-        <div className="text-4xl animate-pulse">🛢️</div>
-        <p className="text-muted-foreground text-sm">
-          Signing in to Crude Rush…
-        </p>
-        <p className="text-xs text-muted-foreground/50">
-          Approve the signature request in Phantom
-        </p>
+        <div className={authError ? 'text-4xl' : 'text-4xl animate-pulse'}>🛢️</div>
+        {authError ? (
+          <>
+            <p className="text-red-400 text-sm font-medium">Sign-in failed</p>
+            <p className="text-xs text-muted-foreground/70 max-w-xs text-center">{authError}</p>
+            <button
+              onClick={() => { authRef.current = false; signIn() }}
+              className="mt-2 px-4 py-2 bg-crude-600 hover:bg-crude-500 text-white text-sm rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => walletDisconnect()}
+              className="text-xs text-muted-foreground/50 hover:text-muted-foreground underline"
+            >
+              Disconnect wallet
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-muted-foreground text-sm">Signing in to Crude Rush…</p>
+            <p className="text-xs text-muted-foreground/50">Approve the signature request in Phantom</p>
+          </>
+        )}
       </div>
     )
   }
@@ -249,13 +281,11 @@ export function GameShell() {
       <TopBar />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Game Grid */}
         <div className="flex-1 flex items-center justify-center p-4 relative">
           <GameGrid />
           <BuildMenu />
         </div>
 
-        {/* Side Panel */}
         <div className="w-80 xl:w-96 border-l border-oil-800 overflow-y-auto">
           <SidePanel />
         </div>

@@ -2,27 +2,54 @@
 
 import { useMissionStore } from '@/stores/missionStore'
 import { useGameStore } from '@/stores/gameStore'
+import { usePlayerStore } from '@/stores/playerStore'
 import { useUiStore } from '@/stores/uiStore'
 import { MISSION_DEFINITIONS } from '@/data/missions'
 import { formatCommas, pct } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+
+const MICRO = 1_000_000
 
 export function MissionPanel() {
   const missions = useMissionStore((s) => s.missions)
   const claimMission = useMissionStore((s) => s.claimMission)
   const addToast = useUiStore((s) => s.addToast)
+  const authToken = usePlayerStore((s) => s.authToken)
+  const addPendingTokens = usePlayerStore((s) => s.addPendingTokens)
 
-  const handleClaim = (key: string) => {
-    const reward = claimMission(key)
-    if (reward > 0) {
-      // Add reward to game store
-      const current = useGameStore.getState().petrodollars
-      useGameStore.setState({ petrodollars: current + reward })
-      addToast({ message: `Mission complete! +$${formatCommas(reward)}`, type: 'reward' })
+  const handleClaim = async (key: string) => {
+    if (!authToken) return
+
+    const result = await claimMission(key, authToken)
+    if (!result) {
+      addToast({ message: 'Claim failed — try again', type: 'error' })
+      return
     }
+
+    const { petrodollarReward, tokenMicroReward } = result
+
+    // Apply petrodollars to game store
+    if (petrodollarReward > 0) {
+      const current = useGameStore.getState().petrodollars
+      useGameStore.setState({ petrodollars: current + petrodollarReward })
+    }
+
+    // Add token reward to pending balance
+    if (tokenMicroReward > 0) {
+      addPendingTokens(tokenMicroReward)
+    }
+
+    // Toast message
+    const parts: string[] = []
+    if (petrodollarReward > 0) parts.push(`+$${formatCommas(petrodollarReward)}`)
+    if (tokenMicroReward > 0) parts.push(`+${formatNumber(tokenMicroReward / MICRO, 1)} $CRUDE`)
+    addToast({
+      message: `Mission complete! ${parts.join(' · ')}`,
+      type: 'reward',
+    })
   }
 
-  // Sort: unclaimed completed first, then in-progress, then claimed
   const sorted = [...missions].sort((a, b) => {
     if (a.completed && !a.claimed && !(b.completed && !b.claimed)) return -1
     if (b.completed && !b.claimed && !(a.completed && !a.claimed)) return 1
@@ -41,6 +68,7 @@ export function MissionPanel() {
 
         const percentage = pct(mission.progress, mission.target)
         const canClaim = mission.completed && !mission.claimed
+        const hasTokenReward = (def.tokenMicroReward ?? 0) > 0
 
         return (
           <div
@@ -56,13 +84,19 @@ export function MissionPanel() {
           >
             <div className="flex items-center justify-between mb-1">
               <h4 className="text-sm font-semibold text-foreground">{def.name}</h4>
-              <span className="text-xs text-crude-400 font-bold">
-                +${formatCommas(def.rewardAmount)}
-              </span>
+              <div className="text-right">
+                <span className="text-xs text-petro-green font-bold">
+                  +${formatCommas(def.rewardAmount)}
+                </span>
+                {hasTokenReward && (
+                  <span className="ml-1.5 text-xs text-crude-400 font-bold">
+                    +{formatNumber((def.tokenMicroReward ?? 0) / MICRO, 0)} $CRUDE
+                  </span>
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mb-2">{def.description}</p>
 
-            {/* Progress bar */}
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-oil-700 rounded-full overflow-hidden">
                 <div
@@ -89,7 +123,7 @@ export function MissionPanel() {
 
             {mission.claimed && (
               <div className="mt-2 text-center text-xs text-petro-green font-semibold">
-                Claimed
+                ✓ Claimed
               </div>
             )}
           </div>

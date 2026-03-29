@@ -65,32 +65,81 @@ export interface StakingInfo {
 /** Cache TTL: refresh on-chain data every 5 minutes */
 const CACHE_TTL_MS = 5 * 60 * 1000
 
+// ── In-flight RPC request deduplication ──────────────────────────────────────
+// Problem: 10,000 simultaneous first logins all have cold caches → 10,000
+// concurrent Solana RPC calls. Public RPC nodes rate-limit at ~100 req/sec,
+// causing 9,900 failures on launch day.
+//
+// Fix: in-process Promise deduplication. If a fetch is already in-flight for
+// a wallet, subsequent callers await the same Promise instead of spawning
+// another RPC call. Combined with the 5-min DB cache this means each wallet
+// makes at most 1 RPC call per 5 minutes regardless of concurrent load.
+const inFlight = new Map<string, Promise<StakingInfo>>()
+
 /**
  * Get the staking production multiplier for a wallet.
- * Returns cached data if fresh, otherwise fetches from chain and updates cache.
+ *
+ * Stale-while-revalidate pattern:
+ *   1. If cached and fresh (<5 min) → return immediately (zero RPC calls)
+ *   2. If cached but stale → return stale data immediately AND kick off a
+ *      background refresh (no latency added to the login path)
+ *   3. If no cache → fetch from chain (first login only, deduplicated)
  */
 export async function getStakingInfo(walletAddress: string): Promise<StakingInfo> {
   const supabase = getServiceSupabase()
 
-  // Check cache
+  // Check DB cache
   const { data: cached } = await supabase
     .from('staking_cache')
-    .select('staked_amount, multiplier, updated_at')
+    .select('staked_amount, multiplier, cached_at')
     .eq('wallet_address', walletAddress)
     .single()
 
   if (cached) {
-    const age = Date.now() - new Date(cached.updated_at).getTime()
-    if (age < CACHE_TTL_MS) {
-      return {
-        stakedAmount: BigInt(cached.staked_amount),
-        multiplier: cached.multiplier,
-        cachedAt: cached.updated_at,
-      }
+    const age = Date.now() - new Date(cached.cached_at).getTime()
+    const stale: StakingInfo = {
+      stakedAmount: BigInt(cached.staked_amount ?? 0),
+      multiplier: cached.multiplier,
+      cachedAt: cached.cached_at,
     }
+
+    if (age < CACHE_TTL_MS) {
+      // Fresh — serve immediately, no RPC call needed
+      return stale
+    }
+
+    // Stale-while-revalidate: return the old value now, refresh in background.
+    // This completely eliminates the RPC call from the login critical path
+    // for returning users (>99% of requests after launch day).
+    void refreshStakingCache(walletAddress).catch(() => {
+      // Non-critical — stale data is fine for a few extra minutes
+    })
+    return stale
   }
 
-  // Cache miss or stale — fetch from chain
+  // No cache entry at all — must fetch from chain (first login).
+  // Deduplicate concurrent requests for the same wallet.
+  return fetchWithDedup(walletAddress)
+}
+
+/** Fetch from chain and update DB cache, deduplicated per wallet */
+async function fetchWithDedup(walletAddress: string): Promise<StakingInfo> {
+  const existing = inFlight.get(walletAddress)
+  if (existing) return existing
+
+  const promise = refreshStakingCache(walletAddress)
+  inFlight.set(walletAddress, promise)
+
+  try {
+    return await promise
+  } finally {
+    inFlight.delete(walletAddress)
+  }
+}
+
+/** Fetch on-chain stake and write result to DB cache */
+async function refreshStakingCache(walletAddress: string): Promise<StakingInfo> {
+  const supabase = getServiceSupabase()
   const stakedAmount = await fetchStakedAmountOnChain(walletAddress)
   const multiplier = stakedAmountToMultiplier(stakedAmount)
   const now = new Date().toISOString()
@@ -100,7 +149,7 @@ export async function getStakingInfo(walletAddress: string): Promise<StakingInfo
       wallet_address: walletAddress,
       staked_amount: stakedAmount.toString(),
       multiplier,
-      updated_at: now,
+      cached_at: now,
     },
     { onConflict: 'wallet_address' }
   )

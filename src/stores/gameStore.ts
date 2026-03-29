@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import type { GameState, GridCell, BuildingType, UpgradeType, ServerGameState } from '@/engine/types'
+import type { GameState, BuildingType, UpgradeType, ServerGameState } from '@/engine/types'
 import { tick } from '@/engine/tick'
 import { recalculateDerivedStats } from '@/engine/production'
-import { getBuildingCost, getBuildingUpgradeCost } from '@/engine/buildings'
+import { getBuildingCost, getBuildingUpgradeCost, isBuildingAvailable } from '@/engine/buildings'
 import { getUpgradeCost, canPurchaseUpgrade } from '@/engine/upgrades'
 import { createInitialGrid, performPrestige, canPrestige } from '@/engine/prestige'
 import { getLevelFromXP, xpFromSale, XP_BUILDING_BUILT, XP_BUILDING_UPGRADED, XP_TILE_UNLOCKED, XP_UPGRADE_PURCHASED } from '@/engine/xp'
@@ -13,11 +13,11 @@ import {
   CRUDE_OIL_SELL_RATE,
   REFINED_OIL_SELL_RATE,
   GRID_SIZE,
-  GRID_CENTER,
   STREAK_BONUS_PER_DAY,
   MAX_STREAK_BONUS,
   BARREL_MILESTONES,
   DAILY_REWARDS,
+  MAX_BUILDING_LEVEL,
 } from '@/engine/constants'
 
 function createInitialUpgrades(): Record<UpgradeType, number> {
@@ -92,6 +92,10 @@ interface GameActions {
   // Temp buff (e.g. from day-7 reward)
   applyTempMultiplier: (multiplier: number, durationMs: number) => void
 
+  // Staking multiplier (on-chain, fetched post-login — not persisted in DB)
+  stakingMultiplier: number
+  setStakingMultiplier: (multiplier: number) => void
+
   // Persistence
   hydrate: (server: ServerGameState) => void
   serialize: () => ServerGameState
@@ -108,15 +112,18 @@ type GameStore = GameState & GameActions
 export const useGameStore = create<GameStore>((set, get) => ({
   ...createInitialGameState(),
 
+  // stakingMultiplier is NOT part of GameState / not persisted — fetched from
+  // /api/game/staking-bonus after login and reset to 1.0 on fresh start.
+  stakingMultiplier: 1.0,
+
   tick: () => {
     const state = get()
     const now = Date.now()
+    // Cap delta to 5 s to prevent runaway catch-up if tab was suspended
     const deltaMs = Math.min(now - state.lastTickAt, 5000)
     if (deltaMs <= 0) return
 
     const newState = tick(state, deltaMs)
-
-    // Check for milestone unlocks from barrel gains
     const prevBarrels = state.lifetimeBarrels
     const newBarrels = newState.lifetimeBarrels
 
@@ -147,7 +154,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newPlots = [...state.plots]
     newPlots[plotIndex] = { ...plot, status: 'unlocked' }
 
-    // Make adjacent locked tiles 'available'
+    // Expose adjacent locked tiles as purchasable
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         if (dx === 0 && dy === 0) continue
@@ -183,6 +190,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (plot.status !== 'unlocked') return false
     if (plot.building !== null) return false
 
+    // Enforce unlock tier — prevents building premium buildings before
+    // the required number of tiles is unlocked (client-side protection;
+    // server validates the same via plots_data on save).
+    if (!isBuildingAvailable(buildingType, state.unlockedTileCount)) return false
+
     const cost = getBuildingCost(buildingType, 1)
     if (state.petrodollars < cost) return false
 
@@ -195,7 +207,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     const derived = recalculateDerivedStats(
-      newPlots, state.upgrades, state.prestigeMultiplier, 1.0, state.milestoneProductionBonus
+      newPlots, state.upgrades, state.prestigeMultiplier,
+      get().stakingMultiplier, state.milestoneProductionBonus
     )
 
     set({
@@ -217,6 +230,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const plot = state.plots[plotIndex]
     if (!plot.building) return false
 
+    // Enforce hard cap on building levels
+    if (plot.level >= MAX_BUILDING_LEVEL) return false
+
     const cost = getBuildingUpgradeCost(plot.building, plot.level)
     if (state.petrodollars < cost) return false
 
@@ -224,7 +240,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     newPlots[plotIndex] = { ...plot, level: plot.level + 1 }
 
     const derived = recalculateDerivedStats(
-      newPlots, state.upgrades, state.prestigeMultiplier, 1.0, state.milestoneProductionBonus
+      newPlots, state.upgrades, state.prestigeMultiplier,
+      get().stakingMultiplier, state.milestoneProductionBonus
     )
 
     set({
@@ -248,7 +265,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const newUpgrades = { ...state.upgrades, [type]: currentLevel + 1 }
     const derived = recalculateDerivedStats(
-      state.plots, newUpgrades, state.prestigeMultiplier, 1.0, state.milestoneProductionBonus
+      state.plots, newUpgrades, state.prestigeMultiplier,
+      get().stakingMultiplier, state.milestoneProductionBonus
     )
 
     set({
@@ -267,11 +285,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const toSell = Math.min(amount, state.crudeOil)
     if (toSell <= 0) return false
 
-    const effectiveRate = CRUDE_OIL_SELL_RATE * state.marketMultiplier * state.streakMultiplier * state.milestoneCashBonus
-    const earned = toSell * effectiveRate
+    const effectiveRate =
+      CRUDE_OIL_SELL_RATE * state.marketMultiplier * state.streakMultiplier * state.milestoneCashBonus
+    // Math.floor prevents float drift accumulating across many sales
+    const earned = Math.floor(toSell * effectiveRate)
 
-    const xpGained = xpFromSale(earned)
-    const newXP = state.xp + xpGained
+    const newXP = state.xp + xpFromSale(earned)
 
     set({
       crudeOil: state.crudeOil - toSell,
@@ -288,11 +307,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const toSell = Math.min(amount, state.refinedOil)
     if (toSell <= 0) return false
 
-    const effectiveRate = REFINED_OIL_SELL_RATE * state.marketMultiplier * state.streakMultiplier * state.milestoneCashBonus
-    const earned = toSell * effectiveRate
+    const effectiveRate =
+      REFINED_OIL_SELL_RATE * state.marketMultiplier * state.streakMultiplier * state.milestoneCashBonus
+    const earned = Math.floor(toSell * effectiveRate)
 
-    const xpGained = xpFromSale(earned)
-    const newXP = state.xp + xpGained
+    const newXP = state.xp + xpFromSale(earned)
 
     set({
       refinedOil: state.refinedOil - toSell,
@@ -304,33 +323,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true
   },
 
-  sellAllCrude: () => {
-    const state = get()
-    return get().sellCrudeOil(state.crudeOil)
-  },
-
-  sellAllRefined: () => {
-    const state = get()
-    return get().sellRefinedOil(state.refinedOil)
-  },
+  sellAllCrude: () => get().sellCrudeOil(get().crudeOil),
+  sellAllRefined: () => get().sellRefinedOil(get().refinedOil),
 
   claimDailyReward: (loginStreak) => {
-    const dayIndex = ((loginStreak - 1) % 7)
+    const dayIndex = (loginStreak - 1) % 7
     const reward = DAILY_REWARDS[dayIndex]
-    const newStreak = loginStreak
-    const streakMult = 1 + Math.min(newStreak * STREAK_BONUS_PER_DAY, MAX_STREAK_BONUS)
+    const streakMult = 1 + Math.min(loginStreak * STREAK_BONUS_PER_DAY, MAX_STREAK_BONUS)
 
     set((state) => {
       const update: Partial<GameState> = {
-        loginStreak: newStreak,
+        loginStreak,
         streakMultiplier: streakMult,
       }
       if (reward.type === 'petrodollars') {
         update.petrodollars = state.petrodollars + reward.amount
         update.lifetimePetrodollars = state.lifetimePetrodollars + reward.amount
       } else if (reward.type === 'crude_oil') {
-        const newCrude = Math.min(state.crudeOil + reward.amount, state.storageCapacity)
-        update.crudeOil = newCrude
+        update.crudeOil = Math.min(state.crudeOil + reward.amount, state.storageCapacity)
       }
       return update
     })
@@ -357,77 +367,88 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
   },
 
+  setStakingMultiplier: (multiplier) => {
+    set({ stakingMultiplier: multiplier })
+    // Immediately recalculate production rate with new staking bonus
+    get()._recalculate()
+  },
+
   hydrate: (server) => {
     const upgrades = server.upgrades_data ?? createInitialUpgrades()
 
     set({
-      crudeOil: server.crude_oil,
-      refinedOil: server.refined_oil,
-      petrodollars: server.petrodollars,
-      plots: server.plots_data,
-      unlockedTileCount: server.unlocked_tile_count,
+      crudeOil:             server.crude_oil ?? 0,
+      refinedOil:           server.refined_oil ?? 0,
+      petrodollars:         server.petrodollars ?? STARTING_PETRODOLLARS,
+      plots:                server.plots_data ?? [],
+      unlockedTileCount:    server.unlocked_tile_count ?? 1,
       upgrades,
-      productionRate: server.production_rate,
-      storageCapacity: server.storage_capacity,
-      refineryRate: server.refinery_rate,
-      prestigeLevel: server.prestige_level,
-      prestigeMultiplier: server.prestige_multiplier,
-      blackGold: server.black_gold ?? 0,
-      xp: server.xp ?? 0,
-      xpLevel: server.xp_level ?? 0,
+      productionRate:       server.production_rate ?? 0,
+      storageCapacity:      server.storage_capacity ?? STARTING_STORAGE,
+      refineryRate:         server.refinery_rate ?? 0,
+      prestigeLevel:        server.prestige_level ?? 0,
+      prestigeMultiplier:   server.prestige_multiplier ?? 1.0,
+      blackGold:            server.black_gold ?? 0,
+      xp:                   server.xp ?? 0,
+      xpLevel:              server.xp_level ?? 0,
       milestoneProductionBonus: server.milestone_production_bonus ?? 1.0,
-      milestoneCashBonus: server.milestone_cash_bonus ?? 1.0,
-      loginStreak: server.login_streak ?? 0,
-      streakMultiplier: server.streak_multiplier ?? 1.0,
-      marketMultiplier: getMarketMultiplier(Date.now()),
+      milestoneCashBonus:   server.milestone_cash_bonus ?? 1.0,
+      loginStreak:          server.login_streak ?? 0,
+      streakMultiplier:     server.streak_multiplier ?? 1.0,
+      marketMultiplier:     getMarketMultiplier(Date.now()),
       activeTempMultiplier: 1.0,
       activeTempMultiplierExpiresAt: null,
-      lifetimeBarrels: server.lifetime_barrels,
-      lifetimePetrodollars: server.lifetime_petrodollars,
-      lastTickAt: new Date(server.last_tick_at).getTime(),
-      version: server.version,
+      lifetimeBarrels:      server.lifetime_barrels ?? 0,
+      lifetimePetrodollars: server.lifetime_petrodollars ?? 0,
+      lastTickAt:           new Date(server.last_tick_at).getTime(),
+      version:              server.version ?? 1,
     })
 
+    // Recalculate derived stats from the loaded plots + upgrades
     get()._recalculate()
   },
 
   serialize: (): ServerGameState => {
     const s = get()
     return {
-      wallet_address: '',
-      crude_oil: s.crudeOil,
-      refined_oil: s.refinedOil,
-      petrodollars: s.petrodollars,
-      plots_data: s.plots,
-      unlocked_tile_count: s.unlockedTileCount,
-      upgrades_data: s.upgrades,
-      production_rate: s.productionRate,
-      storage_capacity: s.storageCapacity,
-      refinery_rate: s.refineryRate,
-      last_tick_at: new Date(s.lastTickAt).toISOString(),
-      version: s.version,
-      prestige_level: s.prestigeLevel,
-      prestige_multiplier: s.prestigeMultiplier,
-      black_gold: s.blackGold,
-      xp: s.xp,
-      xp_level: s.xpLevel,
+      wallet_address:          '',   // filled in by save route from JWT
+      crude_oil:               s.crudeOil,
+      refined_oil:             s.refinedOil,
+      petrodollars:            s.petrodollars,
+      plots_data:              s.plots,
+      unlocked_tile_count:     s.unlockedTileCount,
+      upgrades_data:           s.upgrades,
+      production_rate:         s.productionRate,
+      storage_capacity:        s.storageCapacity,
+      refinery_rate:           s.refineryRate,
+      last_tick_at:            new Date(s.lastTickAt).toISOString(),
+      version:                 s.version,
+      prestige_level:          s.prestigeLevel,
+      prestige_multiplier:     s.prestigeMultiplier,
+      black_gold:              s.blackGold,
+      xp:                      s.xp,
+      xp_level:                s.xpLevel,
       milestone_production_bonus: s.milestoneProductionBonus,
-      milestone_cash_bonus: s.milestoneCashBonus,
-      login_streak: s.loginStreak,
-      streak_multiplier: s.streakMultiplier,
-      lifetime_barrels: s.lifetimeBarrels,
-      lifetime_petrodollars: s.lifetimePetrodollars,
+      milestone_cash_bonus:    s.milestoneCashBonus,
+      login_streak:            s.loginStreak,
+      streak_multiplier:       s.streakMultiplier,
+      lifetime_barrels:        s.lifetimeBarrels,
+      lifetime_petrodollars:   s.lifetimePetrodollars,
     }
   },
 
   reset: () => {
-    set(createInitialGameState())
+    set({ ...createInitialGameState(), stakingMultiplier: 1.0 })
   },
 
   _recalculate: () => {
     const state = get()
     const derived = recalculateDerivedStats(
-      state.plots, state.upgrades, state.prestigeMultiplier, 1.0, state.milestoneProductionBonus
+      state.plots,
+      state.upgrades,
+      state.prestigeMultiplier,
+      state.stakingMultiplier, // correctly applied — was always 1.0 before this fix
+      state.milestoneProductionBonus
     )
     set(derived)
   },
@@ -439,26 +460,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
   },
 
-  /**
-   * Check if any barrel milestones were crossed since last tick
-   * and apply their permanent bonuses + cash rewards.
-   * Milestone bonuses are compound-multiplicative.
-   */
   _applyMilestoneBonuses: (prevBarrels, newBarrels) => {
     for (const milestone of BARREL_MILESTONES) {
       if (prevBarrels < milestone.threshold && newBarrels >= milestone.threshold) {
         set((state) => ({
-          // One-time cash reward
           petrodollars: state.petrodollars + milestone.cashReward,
           lifetimePetrodollars: state.lifetimePetrodollars + milestone.cashReward,
-          // Compound the permanent production bonus
           milestoneProductionBonus: state.milestoneProductionBonus * milestone.productionBonus,
-          // Compound the permanent cash bonus
           milestoneCashBonus: state.milestoneCashBonus * milestone.cashBonus,
         }))
-        // Recalculate production rate to reflect new bonus
         get()._recalculate()
-        // Award XP
         get()._awardXP(500)
       }
     }

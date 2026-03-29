@@ -109,6 +109,17 @@ export function isAutoSellEnabled(level: number): boolean {
   return level >= 1
 }
 
+/** Create a zeroed upgrades record — single source of truth for initial state */
+export function createInitialUpgrades(): Record<UpgradeType, number> {
+  return {
+    extraction_speed: 0,
+    storage_expansion: 0,
+    refinery_efficiency: 0,
+    auto_sell: 0,
+    offline_duration: 0,
+  }
+}
+
 /** Auto-sell rate as a fraction of market price (50% base + 10% per level above 1) */
 export function getAutoSellRate(level: number): number {
   if (level === 0) return 0

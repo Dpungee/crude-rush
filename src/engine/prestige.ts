@@ -1,4 +1,5 @@
-import type { GameState, GridCell, UpgradeType, TileStatus } from './types'
+import type { GameState, GridCell, TileStatus } from './types'
+import { createInitialUpgrades } from './upgrades'
 import {
   PRESTIGE_BASE_THRESHOLD,
   PRESTIGE_THRESHOLD_MULTIPLIER,
@@ -71,16 +72,6 @@ export function createInitialGrid(): GridCell[] {
     }
   }
   return plots
-}
-
-function createInitialUpgrades(): Record<UpgradeType, number> {
-  return {
-    extraction_speed: 0,
-    storage_expansion: 0,
-    refinery_efficiency: 0,
-    auto_sell: 0,
-    offline_duration: 0,
-  }
 }
 
 /**

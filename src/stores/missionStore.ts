@@ -10,7 +10,12 @@ interface MissionState {
   // Actions
   initializeMissions: () => void
   trackEvent: (eventType: GameEventType, amount: number) => void
-  claimMission: (missionKey: string) => number // returns reward amount
+  /**
+   * Claim a mission reward server-side.
+   * Returns { petrodollarReward, tokenMicroReward } on success, null on failure.
+   * Caller is responsible for applying petrodollars to game store.
+   */
+  claimMission: (missionKey: string, authToken: string) => Promise<{ petrodollarReward: number; tokenMicroReward: number } | null>
   setDailyReward: (available: boolean, day: number) => void
   hydrate: (missions: MissionProgress[]) => void
 }
@@ -53,24 +58,48 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     set({ missions: updatedMissions })
   },
 
-  claimMission: (missionKey) => {
+  claimMission: async (missionKey, authToken) => {
     const state = get()
     const mission = state.missions.find((m) => m.missionKey === missionKey)
-    if (!mission || !mission.completed || mission.claimed) return 0
+    if (!mission || !mission.completed || mission.claimed) return null
 
-    const updatedMissions = state.missions.map((m) =>
-      m.missionKey === missionKey ? { ...m, claimed: true } : m
-    )
+    try {
+      const res = await fetch('/api/missions/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ missionKey }),
+      })
 
-    set({ missions: updatedMissions })
-    return mission.rewardAmount
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[missions] Claim failed:', error)
+        return null
+      }
+
+      const { petrodollarReward, tokenMicroReward } = await res.json()
+
+      // Mark claimed in local store — server is the source of truth but
+      // optimistic UI update avoids a re-fetch
+      set({
+        missions: state.missions.map((m) =>
+          m.missionKey === missionKey ? { ...m, claimed: true } : m
+        ),
+      })
+
+      return { petrodollarReward: petrodollarReward ?? 0, tokenMicroReward: tokenMicroReward ?? 0 }
+    } catch (err) {
+      console.error('[missions] Claim error:', err)
+      return null
+    }
   },
 
   setDailyReward: (available, day) =>
     set({ dailyRewardAvailable: available, dailyRewardDay: day }),
 
   hydrate: (missions) => {
-    // Merge server missions with definitions (in case new missions were added)
     const merged = MISSION_DEFINITIONS.map((def) => {
       const existing = missions.find((m) => m.missionKey === def.key)
       if (existing) return existing

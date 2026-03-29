@@ -82,6 +82,8 @@ export interface MissionDefinition {
   target: number
   rewardType: MissionRewardType
   rewardAmount: number
+  /** Optional $CRUDE token reward in micro-$CRUDE (÷1e6 for display). 0 = no token reward. */
+  tokenMicroReward?: number
   trackEvent: GameEventType
   frequency: MissionFrequency
 }

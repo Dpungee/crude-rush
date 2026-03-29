@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth-middleware'
-import { getStakingInfo } from '@/lib/staking'
+import { isSupabaseConfigured } from '@/lib/supabase-server'
+import { STAKING_PROGRAM_ID } from '@/lib/solana'
 
 /**
  * GET /api/game/staking-bonus
@@ -12,7 +13,14 @@ export async function GET(request: Request) {
   if (auth instanceof NextResponse) return auth
   const { walletAddress } = auth
 
+  // Staking requires both Supabase (for cache) and the staking program
+  if (!isSupabaseConfigured() || !STAKING_PROGRAM_ID) {
+    return NextResponse.json({ stakedAmount: '0', multiplier: 1.0, cachedAt: null })
+  }
+
   try {
+    // Dynamic import to avoid evaluating staking.ts at build time when Supabase isn't set
+    const { getStakingInfo } = await import('@/lib/staking')
     const info = await getStakingInfo(walletAddress)
 
     return NextResponse.json({

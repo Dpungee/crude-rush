@@ -1,13 +1,20 @@
-import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js'
+import { Connection, PublicKey } from '@solana/web3.js'
 
 // ─── Network config ──────────────────────────────────────────────────────────
 export const SOLANA_NETWORK =
   (process.env.NEXT_PUBLIC_SOLANA_NETWORK as 'devnet' | 'mainnet-beta') || 'devnet'
 
+// Known cluster URLs — avoids clusterApiUrl() which can fail in some web3.js versions
+const CLUSTER_URLS: Record<string, string> = {
+  devnet: 'https://api.devnet.solana.com',
+  'mainnet-beta': 'https://api.mainnet-beta.solana.com',
+  testnet: 'https://api.testnet.solana.com',
+}
+
 export const SOLANA_RPC_URL =
   process.env.SOLANA_RPC_URL || // server-side paid RPC (Helius/Triton)
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL || // fallback client-side
-  clusterApiUrl(SOLANA_NETWORK)
+  CLUSTER_URLS[SOLANA_NETWORK] || CLUSTER_URLS.devnet
 
 /** Server-side Solana connection — use a paid RPC in production */
 export function getConnection(): Connection {

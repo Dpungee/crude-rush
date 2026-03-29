@@ -4,7 +4,7 @@ import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useMissionStore } from '@/stores/missionStore'
 import { CRUDE_OIL_SELL_RATE, REFINED_OIL_SELL_RATE } from '@/engine/constants'
-import { formatCommas, formatNumber } from '@/lib/utils'
+import { formatCommas, formatNumber, pct } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 export function SellPanel() {
@@ -12,52 +12,87 @@ export function SellPanel() {
   const refinedOil = useGameStore((s) => s.refinedOil)
   const storageCapacity = useGameStore((s) => s.storageCapacity)
   const productionRate = useGameStore((s) => s.productionRate)
+  const refineryRate = useGameStore((s) => s.refineryRate)
+  const marketMultiplier = useGameStore((s) => s.marketMultiplier)
+  const streakMultiplier = useGameStore((s) => s.streakMultiplier)
+  const milestoneCashBonus = useGameStore((s) => s.milestoneCashBonus)
   const sellCrudeOil = useGameStore((s) => s.sellCrudeOil)
   const sellRefinedOil = useGameStore((s) => s.sellRefinedOil)
   const addToast = useUiStore((s) => s.addToast)
   const trackEvent = useMissionStore((s) => s.trackEvent)
 
-  const storagePercent = storageCapacity > 0 ? Math.min((crudeOil / storageCapacity) * 100, 100) : 0
+  const storagePercent = pct(crudeOil, storageCapacity)
+
+  // Apply all active multipliers to the sell rate
+  const effectiveCrudeRate = CRUDE_OIL_SELL_RATE * marketMultiplier * streakMultiplier * milestoneCashBonus
+  const effectiveRefinedRate = REFINED_OIL_SELL_RATE * marketMultiplier * streakMultiplier * milestoneCashBonus
+  const totalCrudeValue = Math.floor(crudeOil * effectiveCrudeRate)
+  const totalRefinedValue = Math.floor(refinedOil * effectiveRefinedRate)
+
+  const marketDelta = (marketMultiplier - 1) * 100
+  const isMarketHot = marketMultiplier >= 1.1
+  const isMarketCold = marketMultiplier <= 0.9
 
   const handleSellCrude = () => {
-    const amount = crudeOil
-    if (amount < 1) return
-    const earned = Math.floor(amount * CRUDE_OIL_SELL_RATE)
-    sellCrudeOil(amount)
+    if (crudeOil < 1) return
+    sellCrudeOil(crudeOil)
     trackEvent('oil_sold', 1)
-    addToast({ message: `Sold ${formatNumber(amount)} bbl crude → +$${formatCommas(earned)}`, type: 'reward' })
+    addToast({ message: `Sold ${formatNumber(crudeOil)} bbl → +$${formatCommas(totalCrudeValue)}`, type: 'reward' })
   }
 
   const handleSellRefined = () => {
-    const amount = refinedOil
-    if (amount < 1) return
-    const earned = Math.floor(amount * REFINED_OIL_SELL_RATE)
-    sellRefinedOil(amount)
+    if (refinedOil < 1) return
+    sellRefinedOil(refinedOil)
     trackEvent('oil_sold', 1)
-    addToast({ message: `Sold ${formatNumber(amount)} bbl refined → +$${formatCommas(earned)}`, type: 'reward' })
+    addToast({ message: `Sold ${formatNumber(refinedOil)} bbl refined → +$${formatCommas(totalRefinedValue)}`, type: 'reward' })
   }
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-bold text-foreground">Oil Market</h3>
+      {/* Market status banner */}
+      <div className={cn(
+        'flex items-center justify-between px-3 py-2 rounded-lg border text-xs',
+        isMarketHot
+          ? 'bg-emerald-950/40 border-emerald-800/40 text-emerald-400'
+          : isMarketCold
+            ? 'bg-red-950/40 border-red-900/40 text-red-400'
+            : 'bg-oil-800/40 border-oil-700/50 text-muted-foreground'
+      )}>
+        <span className="font-semibold">
+          {isMarketHot ? '📈 MARKET HOT' : isMarketCold ? '📉 MARKET COLD' : '📊 Market'}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="tabular-nums font-bold">
+            {marketDelta >= 0 ? '+' : ''}{marketDelta.toFixed(1)}%
+          </span>
+          <span className="opacity-50 tabular-nums">{marketMultiplier.toFixed(3)}x</span>
+        </div>
+      </div>
 
-      {/* Crude Oil */}
+      {/* Crude Oil card */}
       <div className="bg-oil-800/50 rounded-lg p-3 border border-oil-700/50">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="text-lg">🛢️</span>
             <div>
-              <div className="text-sm font-semibold text-amber-300">Crude Oil</div>
-              <div className="text-xs text-muted-foreground">${CRUDE_OIL_SELL_RATE}/bbl</div>
+              <div className="text-xs font-semibold text-amber-300">Crude Oil</div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">
+                ${effectiveCrudeRate.toFixed(2)}/bbl
+                {Math.abs(marketDelta) >= 1 && (
+                  <span className={marketDelta > 0 ? 'text-emerald-500 ml-1' : 'text-red-500 ml-1'}>
+                    ({marketDelta >= 0 ? '+' : ''}{marketDelta.toFixed(0)}%)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-sm font-bold text-amber-400">{formatNumber(crudeOil)}</div>
-            <div className="text-xs text-muted-foreground">/{formatNumber(storageCapacity)} bbl</div>
+            <div className="text-sm font-bold text-amber-400 tabular-nums">{formatNumber(crudeOil)}</div>
+            <div className="text-[10px] text-muted-foreground tabular-nums">/{formatNumber(storageCapacity)} bbl</div>
           </div>
         </div>
 
-        {/* Storage bar */}
+        {/* Storage fill bar */}
         <div className="w-full h-1.5 bg-oil-700 rounded-full overflow-hidden mb-2">
           <div
             className={cn(
@@ -68,12 +103,14 @@ export function SellPanel() {
           />
         </div>
 
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground">
-            Earning: <span className="text-amber-400 font-semibold">+{formatNumber(productionRate)} bbl/s</span>
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-[10px] text-muted-foreground">
+            Rate:{' '}
+            <span className="text-amber-400 font-semibold tabular-nums">+{formatNumber(productionRate)}/s</span>
           </span>
-          <span className="text-xs text-muted-foreground">
-            Value: <span className="text-crude-400 font-semibold">${formatCommas(Math.floor(crudeOil * CRUDE_OIL_SELL_RATE))}</span>
+          <span className="text-[10px] text-muted-foreground">
+            Value:{' '}
+            <span className="text-crude-400 font-semibold tabular-nums">${formatCommas(totalCrudeValue)}</span>
           </span>
         </div>
 
@@ -83,41 +120,58 @@ export function SellPanel() {
           className={cn(
             'w-full py-2 rounded-lg text-xs font-bold transition-all',
             crudeOil >= 1
-              ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30 hover:bg-amber-600/30 active:scale-[0.97]'
-              : 'bg-oil-800/30 text-muted-foreground cursor-not-allowed'
+              ? 'bg-amber-600/20 text-amber-300 border border-amber-600/30 hover:bg-amber-600/30 active:scale-[0.97]'
+              : 'bg-oil-800/30 text-muted-foreground/40 cursor-not-allowed'
           )}
         >
-          Sell All Crude — ${formatCommas(Math.floor(crudeOil * CRUDE_OIL_SELL_RATE))}
+          {crudeOil >= 1 ? `Sell All Crude — +$${formatCommas(totalCrudeValue)}` : 'No crude to sell'}
         </button>
       </div>
 
-      {/* Refined Oil */}
-      {refinedOil > 0 && (
+      {/* Refined Oil card — only shown when refinery exists */}
+      {(refinedOil > 0.1 || refineryRate > 0) && (
         <div className="bg-oil-800/50 rounded-lg p-3 border border-oil-700/50">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">⚗️</span>
               <div>
-                <div className="text-sm font-semibold text-sky-300">Refined Oil</div>
-                <div className="text-xs text-muted-foreground">${REFINED_OIL_SELL_RATE}/bbl</div>
+                <div className="text-xs font-semibold text-sky-300">Refined Oil</div>
+                <div className="text-[10px] text-muted-foreground tabular-nums">${effectiveRefinedRate.toFixed(2)}/bbl</div>
               </div>
             </div>
-            <div className="text-sm font-bold text-sky-400">{formatNumber(refinedOil)} bbl</div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-sky-400 tabular-nums">{formatNumber(refinedOil)}</div>
+              {refineryRate > 0 && (
+                <div className="text-[10px] text-muted-foreground tabular-nums">
+                  +{formatNumber(refineryRate / 2)}/s
+                </div>
+              )}
+            </div>
           </div>
 
           <button
             onClick={handleSellRefined}
-            className="w-full py-2 rounded-lg text-xs font-bold bg-sky-600/20 text-sky-400 border border-sky-600/30 hover:bg-sky-600/30 active:scale-[0.97] transition-all"
+            disabled={refinedOil < 1}
+            className={cn(
+              'w-full py-2 rounded-lg text-xs font-bold transition-all',
+              refinedOil >= 1
+                ? 'bg-sky-900/30 text-sky-300 border border-sky-800/40 hover:bg-sky-900/50 active:scale-[0.97]'
+                : 'bg-oil-800/30 text-muted-foreground/40 cursor-not-allowed'
+            )}
           >
-            Sell All Refined — ${formatCommas(Math.floor(refinedOil * REFINED_OIL_SELL_RATE))}
+            {refinedOil >= 1
+              ? `Sell All Refined — +$${formatCommas(totalRefinedValue)}`
+              : 'Refinery processing…'}
           </button>
         </div>
       )}
 
       {productionRate === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-2">
-          Build oil wells on unlocked plots to start producing.
-        </p>
+        <div className="text-center py-4">
+          <p className="text-xs text-muted-foreground">
+            Build oil wells on your unlocked plots to start producing.
+          </p>
+        </div>
       )}
     </div>
   )
