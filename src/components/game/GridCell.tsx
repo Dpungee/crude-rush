@@ -12,9 +12,29 @@ import {
   getBuildingRefineryRate,
 } from '@/engine/buildings'
 import { cn, formatNumber, formatCommas } from '@/lib/utils'
+import { RING_NAMES } from '@/engine/constants'
 
 interface GridCellProps {
   cell: GridCellType
+}
+
+// ── Ring terrain — each ring has a distinct ground color for zone identity ──
+const RING_GROUND: Record<number, string> = {
+  0: 'bg-amber-950/20',   // HQ — warm core
+  1: 'bg-amber-950/12',   // Starter Fields
+  2: 'bg-orange-950/10',  // Expansion Zone
+  3: 'bg-stone-900/12',   // Industrial Belt — grey/industrial
+  4: 'bg-slate-900/12',   // Deep Reserves — cool steel
+  5: 'bg-zinc-900/10',    // Frontier — dark, distant
+}
+
+const RING_LOCKED_BORDER: Record<number, string> = {
+  0: 'border-amber-900/15',
+  1: 'border-amber-900/10',
+  2: 'border-orange-900/8',
+  3: 'border-stone-800/10',
+  4: 'border-slate-800/8',
+  5: 'border-zinc-800/6',
 }
 
 // Full static class strings — Tailwind tree-shaking requires literal strings
@@ -99,7 +119,12 @@ export function GridCell({ cell }: GridCellProps) {
       const success = unlockTile(cell.x, cell.y)
       if (success) {
         trackEvent('tile_unlocked', 1)
-        addToast({ message: 'Plot unlocked!', type: 'success' })
+        const regionName = RING_NAMES[cell.ring ?? 0] ?? 'Unknown'
+        addToast({
+          message: `🔓 ${regionName} plot claimed! -$${formatCommas(cell.unlockCost)}`,
+          type: 'success',
+          duration: 4000,
+        })
       }
       return
     }
@@ -123,17 +148,24 @@ export function GridCell({ cell }: GridCellProps) {
   const trait = cell.trait ?? 'normal'
   const isRareTile = trait === 'rich' || trait === 'gusher'
 
-  // ── LOCKED ────────────────────────────────────────────────────────────────
+  // ── LOCKED — terrain visible through fog, deeper rings darker ─────────────
   if (cell.status === 'locked') {
-    // Deeper rings are more fogged — creates visual depth
-    const fogOpacity = ring >= 5 ? 'opacity-[0.08]' : ring >= 4 ? 'opacity-[0.15]' : 'opacity-[0.25]'
+    const fogOpacity = ring >= 5 ? 'opacity-[0.12]' : ring >= 4 ? 'opacity-[0.20]' : ring >= 3 ? 'opacity-[0.30]' : 'opacity-[0.35]'
+    const groundColor = RING_GROUND[ring] ?? RING_GROUND[5]
+    const borderColor = RING_LOCKED_BORDER[ring] ?? RING_LOCKED_BORDER[5]
     return (
       <div className={cn(
         'relative aspect-square rounded-sm flex items-center justify-center select-none',
-        'bg-oil-950/60 border border-oil-900/10',
+        groundColor, borderColor, 'border',
         fogOpacity
       )}>
-        <div className="w-1 h-1 rounded-full bg-oil-700/40" />
+        {/* Terrain hint — shows what zone this is even when locked */}
+        {isRareTile && (
+          <div className="w-1.5 h-1.5 rounded-full bg-crude-500/40" />
+        )}
+        {!isRareTile && ring <= 3 && (
+          <div className="w-1 h-1 rounded-full bg-oil-700/30" />
+        )}
       </div>
     )
   }
@@ -188,7 +220,7 @@ export function GridCell({ cell }: GridCellProps) {
           ? [BUILDING_BG[cell.building!], BUILDING_BORDER[cell.building!], BUILDING_GLOW[cell.building!], 'hover:brightness-110']
           : isFirstEmptyPlot
             ? 'bg-amber-950/25 border-amber-600/50 border-dashed hover:bg-amber-900/30 plot-beacon'
-            : 'bg-oil-900/30 border-oil-800/30 border-dashed hover:border-crude-500/25 hover:bg-oil-800/30',
+            : cn('border-dashed hover:border-crude-500/30 hover:bg-oil-800/20', RING_GROUND[ring] ?? 'bg-oil-900/20', 'border-oil-800/25'),
         isSelected && 'ring-2 ring-crude-400 ring-offset-1 ring-offset-oil-950 scale-[1.04]',
         isTerminal && 'shadow-[0_0_16px_rgba(234,179,8,0.3)]'
       )}
