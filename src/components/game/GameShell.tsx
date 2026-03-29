@@ -10,6 +10,7 @@ import { useMissionStore } from '@/stores/missionStore'
 import { createSignMessage } from '@/lib/wallet-auth'
 import { TICK_INTERVAL_MS, SAVE_INTERVAL_MS } from '@/engine/constants'
 import { useEventStore } from '@/stores/eventStore'
+import { useMarketStore } from '@/stores/marketStore'
 import { GameGrid } from './GameGrid'
 import { EventBanner } from './EventBanner'
 import { TopBar } from '@/components/hud/TopBar'
@@ -231,6 +232,15 @@ export function GameShell() {
     useEventStore.getState().fetchEvents()
     const eventInterval = setInterval(() => useEventStore.getState().fetchEvents(), 60_000)
     return () => clearInterval(eventInterval)
+  }, [isAuthenticated])
+
+  // ── Market polling ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return
+    useMarketStore.getState().fetchMarket()
+    // Re-fetch every 60s as a fallback (main refresh is via countdown in tick)
+    const marketInterval = setInterval(() => useMarketStore.getState().fetchMarket(), 60_000)
+    return () => clearInterval(marketInterval)
   }, [isAuthenticated])
 
   // ── Save on tab blur / close ─────────────────────────────────────────
