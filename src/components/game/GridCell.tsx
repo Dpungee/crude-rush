@@ -83,6 +83,7 @@ export function GridCell({ cell }: GridCellProps) {
   const trackEvent = useMissionStore((s) => s.trackEvent)
 
   const [justBuilt, setJustBuilt] = useState(false)
+  const plots = useGameStore((s) => s.plots)
 
   const isSelected = selectedCell?.x === cell.x && selectedCell?.y === cell.y
   const canAffordUnlock = petrodollars >= cell.unlockCost
@@ -105,6 +106,12 @@ export function GridCell({ cell }: GridCellProps) {
 
     selectCell(cell.x, cell.y)
   }
+
+  // Detect if this is the first empty buildable tile (beacon hint for new players)
+  const isFirstEmptyPlot = cell.status === 'unlocked' && !cell.building && (() => {
+    const firstEmpty = plots.find((p) => p.status === 'unlocked' && !p.building)
+    return firstEmpty?.x === cell.x && firstEmpty?.y === cell.y
+  })()
 
   const def = cell.building ? BUILDING_DEFINITIONS[cell.building] : null
   const isProducer = cell.building && ['oil_well', 'pump_jack', 'derrick'].includes(cell.building)
@@ -156,7 +163,9 @@ export function GridCell({ cell }: GridCellProps) {
         'hover:scale-[1.04] active:scale-[0.97]',
         def
           ? [BUILDING_BG[cell.building!], BUILDING_BORDER[cell.building!], BUILDING_GLOW[cell.building!], 'hover:brightness-110']
-          : 'bg-oil-900/30 border-oil-800/30 border-dashed hover:border-crude-500/25 hover:bg-oil-800/30',
+          : isFirstEmptyPlot
+            ? 'bg-amber-950/25 border-amber-600/50 border-dashed hover:bg-amber-900/30 plot-beacon'
+            : 'bg-oil-900/30 border-oil-800/30 border-dashed hover:border-crude-500/25 hover:bg-oil-800/30',
         isSelected && 'ring-2 ring-crude-400 ring-offset-1 ring-offset-oil-950 scale-[1.04]',
         isTerminal && 'shadow-[0_0_16px_rgba(234,179,8,0.3)]'
       )}
@@ -204,7 +213,14 @@ export function GridCell({ cell }: GridCellProps) {
         </>
       ) : (
         /* Empty unlocked — tap to build */
-        <span className="text-base text-oil-700/40 leading-none select-none">+</span>
+        isFirstEmptyPlot ? (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-lg text-amber-500/80 leading-none select-none">+</span>
+            <span className="text-[7px] font-bold text-amber-500/60 leading-none">TAP</span>
+          </div>
+        ) : (
+          <span className="text-base text-oil-700/40 leading-none select-none">+</span>
+        )
       )}
     </button>
   )

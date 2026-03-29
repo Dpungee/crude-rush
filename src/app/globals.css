@@ -225,6 +225,19 @@
     50% { border-color: rgba(239, 68, 68, 0.7); }
   }
 
+  /* ── First-plot beacon — bouncing glow for the first empty buildable tile ── */
+  .plot-beacon {
+    animation: plot-beacon-bounce 1.8s ease-in-out infinite, plot-beacon-glow 1.8s ease-in-out infinite;
+  }
+  @keyframes plot-beacon-bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  @keyframes plot-beacon-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(217, 119, 6, 0.2), inset 0 0 6px rgba(217, 119, 6, 0.05); }
+    50% { box-shadow: 0 0 20px rgba(217, 119, 6, 0.45), inset 0 0 10px rgba(217, 119, 6, 0.1); }
+  }
+
   /* ── Scrollbar none ── */
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
