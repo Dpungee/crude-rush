@@ -50,12 +50,12 @@
     text-shadow: 0 0 8px rgba(46, 204, 113, 0.5), 0 0 16px rgba(46, 204, 113, 0.2);
   }
 
-  /* ── Grid background ── */
+  /* ── Grid background — industrial blueprint feel ── */
   .bg-grid-pattern {
     background-image:
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 20px 20px;
+      linear-gradient(rgba(212,160,23,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212,160,23,0.02) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 
   .oil-shimmer {

@@ -115,14 +115,14 @@ export function MissionPanel() {
             {canClaim && (
               <button
                 onClick={() => handleClaim(mission.missionKey)}
-                className="mt-2 w-full py-1.5 rounded-md text-xs font-bold bg-crude-600 text-oil-950 hover:bg-crude-500 active:scale-[0.98] transition-all"
+                className="mt-2 w-full py-2.5 rounded-lg text-sm font-black bg-gradient-to-r from-crude-600 to-crude-500 text-oil-950 hover:from-crude-500 hover:to-crude-400 active:scale-[0.97] transition-all shadow-lg shadow-crude-500/20 upgrade-shine"
               >
-                Claim Reward
+                🎁 Claim Reward
               </button>
             )}
 
             {mission.claimed && (
-              <div className="mt-2 text-center text-xs text-petro-green font-semibold">
+              <div className="mt-2 text-center text-xs text-emerald-400/70 font-semibold">
                 ✓ Claimed
               </div>
             )}

@@ -247,31 +247,45 @@ export function GameShell() {
   // ── Loading / auth states ────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-oil-950 gap-4">
-        <div className={authError ? 'text-4xl' : 'text-4xl animate-pulse'}>🛢️</div>
-        {authError ? (
-          <>
-            <p className="text-red-400 text-sm font-medium">Sign-in failed</p>
-            <p className="text-xs text-muted-foreground/70 max-w-xs text-center">{authError}</p>
-            <button
-              onClick={() => { authRef.current = false; signIn() }}
-              className="mt-2 px-4 py-2 bg-crude-600 hover:bg-crude-500 text-white text-sm rounded-lg transition-colors"
-            >
-              Try Again
-            </button>
-            <button
-              onClick={() => walletDisconnect()}
-              className="text-xs text-muted-foreground/50 hover:text-muted-foreground underline"
-            >
-              Disconnect wallet
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-muted-foreground text-sm">Signing in to Crude Rush…</p>
-            <p className="text-xs text-muted-foreground/50">Approve the signature request in Phantom</p>
-          </>
-        )}
+      <div className="h-screen flex flex-col items-center justify-center bg-oil-950 relative overflow-hidden">
+        {/* Ambient atmosphere */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-80 h-80 bg-crude-500/8 rounded-full blur-[100px]" />
+
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          {authError ? (
+            <>
+              <div className="text-5xl">🛢️</div>
+              <p className="text-red-400 text-sm font-bold">Sign-in failed</p>
+              <p className="text-xs text-muted-foreground/70 max-w-xs text-center">{authError}</p>
+              <button
+                onClick={() => { authRef.current = false; signIn() }}
+                className="mt-2 px-6 py-2.5 bg-gradient-to-r from-crude-600 to-crude-500 text-oil-950 font-bold text-sm rounded-lg hover:from-crude-500 hover:to-crude-400 transition-all shadow-lg shadow-crude-500/20"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => walletDisconnect()}
+                className="text-xs text-muted-foreground/50 hover:text-muted-foreground underline"
+              >
+                Disconnect wallet
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="text-5xl drop-shadow-[0_0_20px_rgba(212,160,23,0.4)] animate-pulse">🛢️</div>
+              <h2 className="text-lg font-black tracking-tight">
+                <span className="text-crude">CRUDE</span>
+                <span className="text-foreground ml-1">RUSH</span>
+              </h2>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-crude-500 animate-pulse" />
+                <p className="text-muted-foreground text-sm">Signing in…</p>
+              </div>
+              <p className="text-xs text-muted-foreground/40">Approve the signature in your wallet</p>
+            </>
+          )}
+        </div>
       </div>
     )
   }
@@ -281,8 +295,12 @@ export function GameShell() {
       <TopBar />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Grid area — centered with subtle grid background */}
+        {/* Grid area — centered with atmospheric lighting */}
         <div className="flex-1 flex items-center justify-center p-3 relative bg-grid-pattern">
+          {/* Radial ambient glow behind the grid */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-[500px] h-[500px] bg-crude-500/[0.03] rounded-full blur-[80px]" />
+          </div>
           <GameGrid />
           <BuildMenu />
         </div>

@@ -26,7 +26,7 @@ export function TopBar() {
   const isMarketDown = marketMultiplier <= 0.95
 
   return (
-    <div className="h-14 bg-oil-900/95 border-b border-oil-800 flex items-center justify-between px-4 backdrop-blur-sm flex-shrink-0">
+    <div className="h-14 bg-gradient-to-r from-oil-900/95 via-oil-900/98 to-oil-900/95 border-b border-oil-800/50 flex items-center justify-between px-4 backdrop-blur-md flex-shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
       {/* Left: Brand + live production rate */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-1.5 flex-shrink-0">

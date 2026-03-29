@@ -7,28 +7,29 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-oil-950 bg-grid-pattern relative overflow-hidden">
-      {/* Ambient glow effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-crude-500/10 rounded-full blur-[128px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-flame/10 rounded-full blur-[96px]" />
+      {/* Ambient glow effects — layered for depth */}
+      <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-crude-500/8 rounded-full blur-[150px]" />
+      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-flame/6 rounded-full blur-[120px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-amber-500/5 rounded-full blur-[100px]" />
 
       <div className="relative z-10 text-center px-4 max-w-2xl">
         {/* Logo / Title */}
-        <div className="mb-2 text-6xl">🛢️</div>
-        <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-3">
-          <span className="text-crude">CRUDE</span>{' '}
+        <div className="mb-3 text-7xl drop-shadow-[0_0_30px_rgba(212,160,23,0.3)]">🛢️</div>
+        <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-3">
+          <span className="text-crude text-glow-gold">CRUDE</span>{' '}
           <span className="text-foreground">RUSH</span>
         </h1>
-        <p className="text-xl md:text-2xl text-crude-400 font-semibold mb-2 tracking-wide">
-          Drill. Refine. Dominate.
+        <p className="text-xl md:text-2xl text-crude-400/90 font-bold mb-2 tracking-[0.2em] uppercase">
+          Drill · Refine · Dominate
         </p>
-        <p className="text-muted-foreground text-base md:text-lg mb-10 max-w-md mx-auto">
-          Build your oil empire on Solana. Start with a tiny plot, grow into an unstoppable petroleum tycoon.
+        <p className="text-muted-foreground text-sm md:text-base mb-10 max-w-sm mx-auto leading-relaxed">
+          Build an oil empire on Solana. Earn <span className="text-crude-400 font-semibold">$CRUDE</span> tokens. Compete on the leaderboard.
         </p>
 
         {/* Connect Button */}
         <button
           onClick={() => setVisible(true)}
-          className="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-crude-600 to-crude-500 text-oil-950 font-bold text-lg rounded-xl hover:from-crude-500 hover:to-crude-400 transition-all duration-200 shadow-lg shadow-crude-500/25 hover:shadow-crude-500/40 hover:scale-105 active:scale-100"
+          className="group relative inline-flex items-center gap-3 px-10 py-4 bg-gradient-to-r from-crude-600 to-crude-500 text-oil-950 font-black text-lg rounded-xl hover:from-crude-500 hover:to-crude-400 transition-all duration-200 shadow-xl shadow-crude-500/30 hover:shadow-crude-500/50 hover:scale-[1.03] active:scale-[0.98] tracking-wide"
         >
           <svg
             className="w-6 h-6"

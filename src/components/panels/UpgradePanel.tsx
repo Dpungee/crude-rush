@@ -156,7 +156,7 @@ export function UpgradePanel() {
                     isMaxed
                       ? 'bg-crude-800/20 text-crude-400/60 border border-crude-700/20 cursor-not-allowed'
                       : canAfford
-                        ? 'bg-crude-600/20 text-crude-300 border border-crude-600/40 hover:bg-crude-600/30 active:scale-[0.98]'
+                        ? 'bg-crude-600/20 text-crude-300 border border-crude-600/40 hover:bg-crude-600/30 active:scale-[0.98] upgrade-shine'
                         : 'bg-oil-700/30 text-muted-foreground/40 border border-oil-700/20 cursor-not-allowed'
                   )}
                 >
