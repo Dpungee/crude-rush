@@ -19,80 +19,40 @@ interface GridCellProps {
   cell: GridCellType
 }
 
-// ── Ring terrain — each ring has a distinct ground color for zone identity ──
+// ── Ground colors per ring — desert gradient, lighter near center ────────────
 const RING_GROUND: Record<number, string> = {
-  0: 'bg-amber-950/20',   // HQ — warm core
-  1: 'bg-amber-950/12',   // Starter Fields
-  2: 'bg-orange-950/10',  // Expansion Zone
-  3: 'bg-stone-900/12',   // Industrial Belt — grey/industrial
-  4: 'bg-slate-900/12',   // Deep Reserves — cool steel
-  5: 'bg-zinc-900/10',    // Frontier — dark, distant
+  0: '#2a2218', // HQ — warm brown earth
+  1: '#241e15', // Starter — dusty ground
+  2: '#1f1a12', // Expansion — darker earth
+  3: '#191510', // Industrial — grey-brown
+  4: '#14110d', // Deep — dark rocky
+  5: '#100e0a', // Frontier — near black
 }
 
-const RING_LOCKED_BORDER: Record<number, string> = {
-  0: 'border-amber-900/15',
-  1: 'border-amber-900/10',
-  2: 'border-orange-900/8',
-  3: 'border-stone-800/10',
-  4: 'border-slate-800/8',
-  5: 'border-zinc-800/6',
-}
-
-// Full static class strings — Tailwind tree-shaking requires literal strings
-const BUILDING_BORDER: Record<BuildingType, string> = {
-  oil_well:     'border-amber-600/70',
-  pump_jack:    'border-sky-600/70',
-  derrick:      'border-violet-600/70',
-  oil_terminal: 'border-yellow-400/90',
-  storage_tank: 'border-emerald-700/70',
-  refinery:     'border-red-700/70',
-}
-
-const BUILDING_BG: Record<BuildingType, string> = {
-  oil_well:     'bg-amber-950/40',
-  pump_jack:    'bg-sky-950/40',
-  derrick:      'bg-violet-950/40',
-  oil_terminal: 'bg-yellow-950/50',
-  storage_tank: 'bg-emerald-950/40',
-  refinery:     'bg-red-950/40',
-}
-
-const BUILDING_METRIC_COLOR: Record<BuildingType, string> = {
-  oil_well:     'text-amber-400',
-  pump_jack:    'text-sky-400',
-  derrick:      'text-violet-400',
-  oil_terminal: 'text-yellow-400',
-  storage_tank: 'text-emerald-400',
-  refinery:     'text-red-400',
-}
-
-const BUILDING_BAR: Record<BuildingType, string> = {
-  oil_well:     'bg-amber-500',
-  pump_jack:    'bg-sky-500',
-  derrick:      'bg-violet-500',
-  oil_terminal: 'bg-yellow-400',
-  storage_tank: 'bg-emerald-500',
-  refinery:     'bg-red-500',
-}
-
-const BUILDING_GLOW: Record<BuildingType, string> = {
-  oil_well:     'shadow-[0_0_8px_rgba(217,119,6,0.25)]',
-  pump_jack:    'shadow-[0_0_8px_rgba(3,105,161,0.25)]',
-  derrick:      'shadow-[0_0_10px_rgba(124,58,237,0.25)]',
-  oil_terminal: 'shadow-[0_0_14px_rgba(234,179,8,0.3)]',
-  storage_tank: 'shadow-[0_0_8px_rgba(4,120,87,0.2)]',
-  refinery:     'shadow-[0_0_10px_rgba(220,38,38,0.25)]',
+// ── Building stat helpers ────────────────────────────────────────────────────
+const METRIC_COLOR: Record<BuildingType, string> = {
+  oil_well:     'text-amber-400/90',
+  pump_jack:    'text-sky-400/90',
+  derrick:      'text-violet-400/90',
+  oil_terminal: 'text-yellow-400/90',
+  storage_tank: 'text-emerald-400/90',
+  refinery:     'text-red-400/90',
 }
 
 function getBuildingMetric(type: BuildingType, level: number): string {
-  if (type === 'oil_terminal') return '↑20% aura'
+  if (type === 'oil_terminal') return '↑20%'
   const storage = getBuildingStorageBonus(type, level)
-  if (storage > 0) return `+${formatNumber(storage, 0)} cap`
+  if (storage > 0) return `+${formatNumber(storage, 0)}`
   const refRate = getBuildingRefineryRate(type, level)
-  if (refRate > 0) return `→${formatNumber(refRate / 2, 1)}/s`
+  if (refRate > 0) return `${formatNumber(refRate / 2, 1)}/s`
   const prod = getBuildingProduction(type, level)
   if (prod > 0) return `+${formatNumber(prod, 1)}/s`
   return ''
+}
+
+// Deterministic "prop" placement based on coords
+function hashCoord(x: number, y: number, seed: number): number {
+  return ((x * 7919 + y * 6271 + seed * 1031) & 0x7fffffff) % 100
 }
 
 export function GridCell({ cell }: GridCellProps) {
@@ -133,13 +93,11 @@ export function GridCell({ cell }: GridCellProps) {
     selectCell(cell.x, cell.y)
   }
 
-  // Detect if this is the first empty buildable tile (beacon hint for new players)
   const isFirstEmptyPlot = cell.status === 'unlocked' && !cell.building && !cell.constructionType && (() => {
     const firstEmpty = plots.find((p) => p.status === 'unlocked' && !p.building && !p.constructionType)
     return firstEmpty?.x === cell.x && firstEmpty?.y === cell.y
   })()
 
-  // Construction state
   const isUnderConstruction = !!cell.constructionEndsAt
   const constructionDef = cell.constructionType ? BUILDING_DEFINITIONS[cell.constructionType] : null
 
@@ -152,139 +110,252 @@ export function GridCell({ cell }: GridCellProps) {
   const ring = cell.ring ?? 0
   const trait = cell.trait ?? 'normal'
   const isRareTile = trait === 'rich' || trait === 'gusher'
+  const groundColor = RING_GROUND[ring] ?? RING_GROUND[5]
 
-  // ── LOCKED — terrain visible through fog, deeper rings darker ─────────────
+  // Deterministic small prop variations
+  const h1 = hashCoord(cell.x, cell.y, 1)
+  const h2 = hashCoord(cell.x, cell.y, 2)
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // LOCKED — fogged terrain, barely visible
+  // ══════════════════════════════════════════════════════════════════════════
   if (cell.status === 'locked') {
-    const fogOpacity = ring >= 5 ? 'opacity-[0.12]' : ring >= 4 ? 'opacity-[0.20]' : ring >= 3 ? 'opacity-[0.30]' : 'opacity-[0.35]'
-    const groundColor = RING_GROUND[ring] ?? RING_GROUND[5]
-    const borderColor = RING_LOCKED_BORDER[ring] ?? RING_LOCKED_BORDER[5]
+    const fogAlpha = ring >= 5 ? 0.85 : ring >= 4 ? 0.75 : ring >= 3 ? 0.65 : 0.55
     return (
-      <div className={cn(
-        'relative aspect-square rounded-sm flex items-center justify-center select-none',
-        groundColor, borderColor, 'border',
-        fogOpacity
-      )}>
-        {/* Terrain hint — shows what zone this is even when locked */}
-        {isRareTile && (
-          <div className="w-1.5 h-1.5 rounded-full bg-crude-500/40" />
+      <div
+        className="relative aspect-square select-none overflow-hidden"
+        style={{ backgroundColor: groundColor }}
+      >
+        {/* Fog overlay */}
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: `rgba(10,10,10,${fogAlpha})` }}
+        />
+        {/* Subtle terrain variation under fog */}
+        {h1 < 15 && (
+          <div className="absolute inset-[30%] rounded-full opacity-[0.06]"
+            style={{ backgroundColor: '#8b5c2e' }} />
         )}
-        {!isRareTile && ring <= 3 && (
-          <div className="w-1 h-1 rounded-full bg-oil-700/30" />
+        {/* Rare tile shimmer visible through fog */}
+        {isRareTile && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className={cn(
+              'w-1.5 h-1.5 rounded-full animate-pulse',
+              trait === 'gusher' ? 'bg-crude-500/25' : 'bg-amber-500/15'
+            )} />
+          </div>
         )}
       </div>
     )
   }
 
-  // ── AVAILABLE (purchasable) ───────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // AVAILABLE — frontier land, claimable
+  // ══════════════════════════════════════════════════════════════════════════
   if (cell.status === 'available') {
     return (
       <button
         onClick={handleClick}
         className={cn(
-          'relative aspect-square rounded-sm border-2 border-dashed transition-all duration-200',
-          'flex flex-col items-center justify-center gap-0.5',
-          'hover:scale-[1.05] active:scale-[0.97]',
-          canAffordUnlock
-            ? trait === 'gusher'
-              ? 'border-crude-400/60 bg-crude-950/25 hover:bg-crude-900/35 hover:border-crude-300/80'
-              : trait === 'rich'
-                ? 'border-amber-500/50 bg-amber-950/15 hover:bg-amber-900/25 hover:border-amber-400/70'
-                : 'border-crude-500/40 bg-crude-950/15 hover:bg-crude-900/25 hover:border-crude-400/60'
-            : 'border-oil-700/20 bg-oil-950/10 opacity-30'
+          'relative aspect-square overflow-hidden transition-all duration-200',
+          'hover:brightness-125 active:scale-[0.97]',
+          !canAffordUnlock && 'opacity-40'
         )}
+        style={{ backgroundColor: groundColor }}
       >
-        {/* Trait indicator for rare tiles */}
-        {isRareTile && (
-          <span className={cn(
-            'absolute top-0 left-0 text-[6px] px-0.5 rounded-br font-black leading-tight',
-            trait === 'gusher' ? 'bg-crude-500/30 text-crude-300' : 'bg-amber-500/20 text-amber-400'
-          )}>
-            {trait === 'gusher' ? '★' : '◆'}
-          </span>
+        {/* Frontier haze — lighter than locked */}
+        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(10,10,10,0.35)' }} />
+
+        {/* Stake markers in corners */}
+        <div className="absolute top-[2px] left-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
+        <div className="absolute top-[2px] right-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
+        <div className="absolute bottom-[2px] left-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
+        <div className="absolute bottom-[2px] right-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
+
+        {/* Dashed claim boundary */}
+        <div className="absolute inset-[3px] border border-dashed border-crude-600/30 rounded-[1px]" />
+
+        {/* Trait glow for special tiles */}
+        {trait === 'gusher' && canAffordUnlock && (
+          <div className="absolute inset-0 bg-crude-500/8 animate-pulse" />
         )}
-        <span className="text-[9px] leading-none select-none">🔓</span>
-        <span className={cn(
-          'text-[7px] font-bold leading-none tabular-nums',
-          canAffordUnlock ? 'text-crude-400' : 'text-oil-600'
-        )}>
-          ${formatCommas(cell.unlockCost)}
-        </span>
+        {trait === 'rich' && canAffordUnlock && (
+          <div className="absolute inset-0 bg-amber-500/5" />
+        )}
+
+        {/* Price label */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+          {isRareTile && (
+            <span className={cn(
+              'text-[6px] font-black leading-none mb-0.5',
+              trait === 'gusher' ? 'text-crude-400/70' : 'text-amber-400/60'
+            )}>
+              {trait === 'gusher' ? '★ GUSHER' : '◆ RICH'}
+            </span>
+          )}
+          <span className={cn(
+            'text-[8px] font-bold leading-none tabular-nums',
+            canAffordUnlock ? 'text-crude-400/80' : 'text-oil-600/50'
+          )}>
+            ${formatCommas(cell.unlockCost)}
+          </span>
+        </div>
       </button>
     )
   }
 
-  // ── UNLOCKED ──────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // UNLOCKED — owned territory
+  // ══════════════════════════════════════════════════════════════════════════
   return (
     <button
       onClick={handleClick}
       className={cn(
-        'relative aspect-square rounded-sm border transition-all duration-150 overflow-hidden',
-        'flex flex-col items-center justify-center',
-        'hover:scale-[1.04] active:scale-[0.97]',
-        def
-          ? [BUILDING_BG[cell.building!], BUILDING_BORDER[cell.building!], BUILDING_GLOW[cell.building!], 'hover:brightness-110']
-          : isFirstEmptyPlot
-            ? 'bg-amber-950/25 border-amber-600/50 border-dashed hover:bg-amber-900/30 plot-beacon'
-            : cn('border-dashed hover:border-crude-500/30 hover:bg-oil-800/20', RING_GROUND[ring] ?? 'bg-oil-900/20', 'border-oil-800/25'),
-        isSelected && 'ring-2 ring-crude-400 ring-offset-1 ring-offset-oil-950 scale-[1.04]',
-        isTerminal && 'shadow-[0_0_16px_rgba(234,179,8,0.3)]'
+        'relative aspect-square overflow-hidden transition-all duration-150',
+        'hover:brightness-110 active:scale-[0.97]',
+        isSelected && 'ring-1 ring-crude-400 ring-offset-1 ring-offset-[#0d0b08] z-10 brightness-110',
       )}
+      style={{ backgroundColor: groundColor }}
     >
+      {/* ── Ground pad — concrete/steel platform for buildings ──────────── */}
+      {def && (
+        <div className="absolute inset-[8%] rounded-[2px]"
+          style={{
+            background: 'linear-gradient(180deg, rgba(60,55,45,0.5) 0%, rgba(40,35,28,0.6) 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
+          }}
+        />
+      )}
+
+      {/* ── Empty plot pad (no building) ────────────────────────────────── */}
+      {!def && !isUnderConstruction && (
+        <>
+          {/* Dirt pad */}
+          <div className="absolute inset-[12%] rounded-[1px]"
+            style={{
+              background: `linear-gradient(180deg, rgba(50,42,30,0.3) 0%, rgba(35,28,18,0.4) 100%)`,
+              borderTop: '1px solid rgba(80,65,40,0.1)',
+            }}
+          />
+          {/* Ground props — rocks, dirt patches */}
+          {h1 < 25 && (
+            <div className="absolute rounded-full opacity-[0.15]"
+              style={{
+                width: '3px', height: '2px',
+                backgroundColor: '#6b5834',
+                top: `${30 + (h2 % 30)}%`,
+                left: `${20 + (h1 % 40)}%`,
+              }}
+            />
+          )}
+          {h2 > 70 && (
+            <div className="absolute rounded-full opacity-[0.1]"
+              style={{
+                width: '2px', height: '2px',
+                backgroundColor: '#5a4a2e',
+                bottom: `${20 + (h1 % 25)}%`,
+                right: `${15 + (h2 % 30)}%`,
+              }}
+            />
+          )}
+        </>
+      )}
+
+      {/* ── Trait ground effect ─────────────────────────────────────────── */}
+      {isRareTile && (
+        <div className={cn(
+          'absolute inset-0 pointer-events-none',
+          trait === 'gusher' ? 'bg-crude-500/6' : 'bg-amber-600/4'
+        )} />
+      )}
+
+      {/* ── Building content ────────────────────────────────────────────── */}
       {def ? (
         <>
-          {/* Level badge — top-right */}
-          <div className="absolute top-0 right-0 z-10 text-[6px] font-black text-oil-300 bg-oil-950/80 px-0.5 rounded-bl leading-tight">
+          {/* Level badge */}
+          <div className="absolute top-0 right-0 z-10 text-[6px] font-black text-oil-300 bg-oil-950/70 px-0.5 rounded-bl leading-tight">
             {cell.level}
           </div>
 
-          {/* Trait badge — top-left (only for special tiles) */}
+          {/* Trait badge */}
           {isRareTile && (
             <div className={cn(
               'absolute top-0 left-0 z-10 text-[5px] px-0.5 rounded-br leading-tight font-black',
-              trait === 'gusher' ? 'bg-crude-500/30 text-crude-300' : 'bg-amber-500/20 text-amber-400'
+              trait === 'gusher' ? 'bg-crude-900/60 text-crude-400' : 'bg-amber-900/50 text-amber-400'
             )}>
               {trait === 'gusher' ? '★' : '◆'}
             </div>
           )}
 
-          {/* Visual building component */}
-          <BuildingRenderer
-            type={cell.building!}
-            level={cell.level}
-            isUpgrading={isUnderConstruction}
-          />
+          {/* Building visual */}
+          <div className="absolute inset-[5%]">
+            <BuildingRenderer
+              type={cell.building!}
+              level={cell.level}
+              isUpgrading={isUnderConstruction}
+            />
+          </div>
 
           {/* Production metric */}
           {metric && (
             <span className={cn(
-              'absolute bottom-[2px] text-[7px] font-bold leading-none tabular-nums',
-              BUILDING_METRIC_COLOR[cell.building!]
+              'absolute bottom-[1px] left-1/2 -translate-x-1/2 text-[6px] font-bold leading-none tabular-nums z-10',
+              METRIC_COLOR[cell.building!]
             )}>
               {metric}
             </span>
           )}
 
-          {/* Active production bar — thin bottom strip */}
+          {/* Active production strip */}
           {(isProducer || isRefinery) && !isUnderConstruction && (
-            <div className="absolute bottom-0 left-0 right-0 h-[2px] opacity-80">
-              <div className={cn('h-full w-full animate-pulse', BUILDING_BAR[cell.building!])} />
+            <div className="absolute bottom-0 left-0 right-0 h-[2px]">
+              <div className="h-full w-full animate-pulse"
+                style={{
+                  background: isRefinery
+                    ? 'linear-gradient(90deg, transparent, rgba(220,38,38,0.4), transparent)'
+                    : 'linear-gradient(90deg, transparent, rgba(217,119,6,0.4), transparent)',
+                }}
+              />
             </div>
           )}
+
+          {/* Terminal aura */}
+          {isTerminal && !isUnderConstruction && (
+            <div className="absolute -inset-[2px] rounded-[2px] border border-yellow-500/10 animate-pulse pointer-events-none" />
+          )}
+
+          {/* Ground pipe stubs on developed plots */}
+          {h1 < 40 && (
+            <div className="absolute bottom-[15%] left-0 w-[3px] h-[2px] bg-stone-700/30 rounded-r-sm" />
+          )}
+          {h2 > 60 && (
+            <div className="absolute top-[40%] right-0 w-[3px] h-[2px] bg-stone-700/25 rounded-l-sm" />
+          )}
         </>
+      ) : isUnderConstruction && constructionDef ? (
+        /* Under construction */
+        <div className="absolute inset-[5%]">
+          <ConstructionPreview type={cell.constructionType!} />
+          {/* Caution stripe at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-[3px] overflow-hidden">
+            <div className="h-full w-[200%] animate-oil-flow"
+              style={{
+                background: 'repeating-linear-gradient(90deg, #f59e0b33 0px, #f59e0b33 4px, transparent 4px, transparent 8px)',
+              }}
+            />
+          </div>
+        </div>
+      ) : isFirstEmptyPlot ? (
+        /* First empty plot — beacon */
+        <div className="absolute inset-0 flex flex-col items-center justify-center plot-beacon">
+          <span className="text-sm text-amber-500/70 leading-none select-none font-bold">+</span>
+          <span className="text-[6px] font-bold text-amber-500/50 leading-none mt-0.5">BUILD</span>
+        </div>
       ) : (
-        /* Empty or under construction */
-        isUnderConstruction && constructionDef ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <ConstructionPreview type={cell.constructionType!} />
-          </div>
-        ) : isFirstEmptyPlot ? (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-lg text-amber-500/80 leading-none select-none">+</span>
-            <span className="text-[7px] font-bold text-amber-500/60 leading-none">TAP</span>
-          </div>
-        ) : (
-          <span className="text-base text-oil-700/40 leading-none select-none">+</span>
-        )
+        /* Empty plot — just ground with subtle indicator */
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-2 h-2 border border-dashed border-oil-700/15 rounded-[1px]" />
+        </div>
       )}
     </button>
   )
