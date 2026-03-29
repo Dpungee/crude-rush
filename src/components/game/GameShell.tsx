@@ -174,7 +174,15 @@ export function GameShell() {
       await loadGame(verifyData.token)
     } catch (err) {
       console.error('Sign-in failed:', err)
-      const msg = err instanceof Error ? err.message : 'Sign-in failed. Please reconnect.'
+      let msg = 'Sign-in failed. Please reconnect.'
+      if (err instanceof Error) {
+        // User rejected the signature request in their wallet
+        if (err.message.includes('User rejected') || err.message.includes('rejected')) {
+          msg = 'Signature rejected. Click "Try Again" to sign in.'
+        } else {
+          msg = err.message
+        }
+      }
       setAuthError(msg)
       authRef.current = false
     }

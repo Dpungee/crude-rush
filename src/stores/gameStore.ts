@@ -7,6 +7,9 @@ import { getUpgradeCost, canPurchaseUpgrade, createInitialUpgrades } from '@/eng
 import { createInitialGrid, performPrestige, canPrestige } from '@/engine/prestige'
 import { getLevelFromXP, xpFromSale, XP_BUILDING_BUILT, XP_BUILDING_UPGRADED, XP_TILE_UNLOCKED, XP_UPGRADE_PURCHASED } from '@/engine/xp'
 import { getMarketMultiplier } from '@/engine/market'
+// Lazy-loaded to avoid circular deps — imported at top but accessed via function
+import { useEventStore } from '@/stores/eventStore'
+import { useMarketStore } from '@/stores/marketStore'
 import {
   STARTING_PETRODOLLARS,
   STARTING_STORAGE,
@@ -25,16 +28,22 @@ import {
 
 // Use the shared createInitialUpgrades from engine/upgrades.ts (imported above)
 
-/** Get the current event time multiplier for construction (lazy import to avoid circular deps) */
+/** Get the current event time multiplier for construction */
 function getEventTimeMultiplier(): number {
   try {
-    // Dynamic require avoids circular dependency — eventStore doesn't depend on gameStore
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { useEventStore } = require('@/stores/eventStore')
     return useEventStore.getState().getEffectiveModifiers().upgradeTimeMultiplier ?? 1.0
   } catch {
     return 1.0
   }
+}
+
+/** Get current market prices from the server-authoritative market store */
+function getServerMarketPrices(): { crudeMult: number; refinedMult: number } {
+  try {
+    const ms = useMarketStore.getState()
+    if (ms.updatedAt) return { crudeMult: ms.crudeMult, refinedMult: ms.refinedMult }
+  } catch { /* first load */ }
+  return { crudeMult: 1.0, refinedMult: 1.0 }
 }
 
 export function createInitialGameState(): GameState {
@@ -133,17 +142,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (deltaMs <= 0) return
 
     // Pull server-authoritative market price from marketStore
-    let serverCrudeMult = state.marketMultiplier
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { useMarketStore } = require('@/stores/marketStore')
-      const ms = useMarketStore.getState()
-      if (ms.updatedAt) serverCrudeMult = ms.crudeMult
-      // Also tick market countdown
-      ms.tickCountdown()
-    } catch { /* first load, use existing */ }
+    const { crudeMult: serverCrudeMult } = getServerMarketPrices()
+    try { useMarketStore.getState().tickCountdown() } catch { /* ok */ }
 
-    const stateWithMarket = { ...state, marketMultiplier: serverCrudeMult }
+    const stateWithMarket = { ...state, marketMultiplier: serverCrudeMult || state.marketMultiplier }
     const newState = tick(stateWithMarket, deltaMs)
     const prevBarrels = state.lifetimeBarrels
     const newBarrels = newState.lifetimeBarrels
@@ -374,15 +376,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (toSell <= 0) return false
 
     // Use server-authoritative crude market price
-    let crudeMult = state.marketMultiplier
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { useMarketStore } = require('@/stores/marketStore')
-      const ms = useMarketStore.getState()
-      if (ms.updatedAt) crudeMult = ms.crudeMult
-    } catch { /* fallback */ }
-
-    const effectiveRate = CRUDE_OIL_SELL_RATE * crudeMult * state.streakMultiplier * state.milestoneCashBonus
+    const { crudeMult } = getServerMarketPrices()
+    const effectiveMult = crudeMult || state.marketMultiplier
+    const effectiveRate = CRUDE_OIL_SELL_RATE * effectiveMult * state.streakMultiplier * state.milestoneCashBonus
     const earned = Math.floor(toSell * effectiveRate)
     const newXP = state.xp + xpFromSale(earned)
 
@@ -390,7 +386,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       crudeOil: state.crudeOil - toSell,
       petrodollars: state.petrodollars + earned,
       lifetimePetrodollars: state.lifetimePetrodollars + earned,
-      marketMultiplier: crudeMult,
+      marketMultiplier: effectiveMult,
       xp: newXP,
       xpLevel: getLevelFromXP(newXP),
     })
@@ -403,15 +399,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (toSell <= 0) return false
 
     // Use server-authoritative refined market price
-    let refinedMult = state.marketMultiplier
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { useMarketStore } = require('@/stores/marketStore')
-      const ms = useMarketStore.getState()
-      if (ms.updatedAt) refinedMult = ms.refinedMult
-    } catch { /* fallback */ }
-
-    const effectiveRate = REFINED_OIL_SELL_RATE * refinedMult * state.streakMultiplier * state.milestoneCashBonus
+    const { refinedMult } = getServerMarketPrices()
+    const effectiveRefinedMult = refinedMult || state.marketMultiplier
+    const effectiveRate = REFINED_OIL_SELL_RATE * effectiveRefinedMult * state.streakMultiplier * state.milestoneCashBonus
     const earned = Math.floor(toSell * effectiveRate)
     const newXP = state.xp + xpFromSale(earned)
 
