@@ -7,6 +7,7 @@ import { usePlayerStore } from '@/stores/playerStore'
 import { useUiStore } from '@/stores/uiStore'
 import { formatNumber, formatCommas } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { useGameStore } from '@/stores/gameStore'
 import { BARREL_MILESTONES } from '@/engine/constants'
 
 const MICRO = 1_000_000
@@ -176,17 +177,20 @@ export function TokenPanel() {
 
       {/* Balance card */}
       <div className="bg-oil-800/50 rounded-lg p-4 border border-crude-500/20 text-center">
-        <div className="text-4xl mb-2">🪙</div>
-        <div className="text-2xl font-black text-crude-400">
+        <div className="text-4xl mb-2 drop-shadow-[0_0_10px_rgba(212,160,23,0.3)]">🪙</div>
+        <div className="text-3xl font-black text-crude-400 tabular-nums text-glow-gold">
           {formatNumber(displayBalance, 2)}
         </div>
-        <div className="text-sm text-muted-foreground font-semibold">$CRUDE earned</div>
+        <div className="text-sm text-muted-foreground font-semibold">$CRUDE claimable</div>
         {totalEarned > 0 && (
-          <div className="text-xs text-muted-foreground/60 mt-1">
-            {formatNumber(totalEarned / MICRO, 0)} total lifetime
+          <div className="text-xs text-muted-foreground/60 mt-1 tabular-nums">
+            {formatNumber(totalEarned / MICRO, 0)} lifetime earned
           </div>
         )}
       </div>
+
+      {/* Staking info — shown when staking is active */}
+      <StakingInfo />
 
       {/* Claim section */}
       {!CRUDE_TOKEN_AVAILABLE ? (
@@ -270,6 +274,40 @@ export function TokenPanel() {
             <span>Daily login (Day 4–7)</span>
             <span className="text-crude-400 font-semibold">1–10 $CRUDE</span>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Staking bonus display — shows current staking multiplier if >1.0 */
+function StakingInfo() {
+  const stakingMultiplier = useGameStore((s) => s.stakingMultiplier)
+
+  if (stakingMultiplier <= 1.0) {
+    return (
+      <div className="bg-oil-800/20 rounded-lg p-3 border border-oil-700/20 text-center">
+        <div className="text-xs text-muted-foreground/60">
+          <span className="font-semibold">Staking</span> — Stake $CRUDE for up to +50% production
+        </div>
+      </div>
+    )
+  }
+
+  const bonusPct = Math.round((stakingMultiplier - 1) * 100)
+  return (
+    <div className="bg-violet-950/20 rounded-lg p-3 border border-violet-800/30">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">🔒</span>
+          <div>
+            <div className="text-xs font-bold text-violet-300">Staking Active</div>
+            <div className="text-[10px] text-violet-400/60">Production bonus active</div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-black text-violet-400 tabular-nums">+{bonusPct}%</div>
+          <div className="text-[10px] text-violet-400/50 tabular-nums">{stakingMultiplier.toFixed(2)}x</div>
         </div>
       </div>
     </div>
