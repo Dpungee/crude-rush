@@ -49,15 +49,35 @@ export function getTileUnlockCost(x: number, y: number): number {
   const dx = Math.abs(x - GRID_CENTER)
   const dy = Math.abs(y - GRID_CENTER)
   const dist = Math.max(dx, dy)
-  const baseCost = TILE_UNLOCK_COSTS[dist] ?? TILE_UNLOCK_COSTS[3]
+  const maxRing = Math.max(...Object.keys(TILE_UNLOCK_COSTS).map(Number))
+  const baseCost = TILE_UNLOCK_COSTS[dist] ?? TILE_UNLOCK_COSTS[maxRing]
   // Exact corners (all 4) get a 30% premium
   const isCorner = dx === dist && dy === dist && dist > 0
   return isCorner ? Math.floor(baseCost * 1.3) : baseCost
 }
 
 /**
- * Create the initial 7×7 grid for a fresh start or prestige reset.
- * Center tile (3,3) starts unlocked; ring-1 tiles are 'available'; rest 'locked'.
+ * Deterministic tile trait assignment based on coordinates.
+ * Uses a simple hash to ensure the same layout for all players.
+ * ~15% rich, ~3% gusher, ~10% barren, rest normal.
+ * Center tile and ring 1 are always normal (don't penalize new players).
+ */
+function getTileTrait(x: number, y: number): 'normal' | 'rich' | 'gusher' | 'barren' {
+  const dist = Math.max(Math.abs(x - GRID_CENTER), Math.abs(y - GRID_CENTER))
+  if (dist <= 1) return 'normal' // Ring 0-1 always normal
+
+  // Simple deterministic hash from coordinates
+  const hash = ((x * 7919) + (y * 6271) + (x * y * 1031)) % 100
+  if (hash < 3) return 'gusher'   // 3% — rare jackpot tiles
+  if (hash < 18) return 'rich'     // 15% — above-average yield
+  if (hash < 28) return 'barren'   // 10% — below-average yield
+  return 'normal'                   // 72%
+}
+
+/**
+ * Create the initial 11×11 grid for a fresh start or prestige reset.
+ * Center tile starts unlocked; ring-1 tiles are 'available'; rest 'locked'.
+ * Each tile gets a deterministic trait (rich, gusher, barren, or normal).
  */
 export function createInitialGrid(): GridCell[] {
   const plots: GridCell[] = []
@@ -68,7 +88,8 @@ export function createInitialGrid(): GridCell[] {
       let status: TileStatus = 'locked'
       if (dist === 0) status = 'unlocked'
       else if (dist === 1) status = 'available'
-      plots.push({ x, y, status, building: null, level: 0, builtAt: null, unlockCost })
+      const trait = getTileTrait(x, y)
+      plots.push({ x, y, status, building: null, level: 0, builtAt: null, unlockCost, ring: dist, trait })
     }
   }
   return plots

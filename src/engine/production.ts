@@ -1,7 +1,7 @@
 import type { GridCell, UpgradeType } from './types'
 import { getBuildingProduction, getBuildingStorageBonus, getBuildingRefineryRate, BUILDING_DEFINITIONS } from './buildings'
 import { getExtractionSpeedMultiplier, getStorageExpansionMultiplier, getRefineryEfficiencyMultiplier } from './upgrades'
-import { STARTING_STORAGE } from './constants'
+import { STARTING_STORAGE, TILE_TRAITS } from './constants'
 
 /** Building types that produce crude oil */
 const PRODUCER_TYPES = new Set(['oil_well', 'pump_jack', 'derrick'])
@@ -47,7 +47,8 @@ export function calculateProductionRate(
     if (!plot.building || !PRODUCER_TYPES.has(plot.building)) continue
     const base = getBuildingProduction(plot.building, plot.level)
     const aura = getAuraMultiplier(plots, plot.x, plot.y)
-    totalProduction += base * aura
+    const traitMult = TILE_TRAITS[plot.trait ?? 'normal']?.productionMultiplier ?? 1.0
+    totalProduction += base * aura * traitMult
   }
 
   const speedMultiplier = getExtractionSpeedMultiplier(upgrades.extraction_speed)

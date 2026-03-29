@@ -9,16 +9,51 @@ export const TICK_INTERVAL_MS = 1000
 /** Auto-save interval in milliseconds */
 export const SAVE_INTERVAL_MS = 30_000
 
-/** Grid dimensions */
-export const GRID_SIZE = 7
-export const GRID_CENTER = 3 // index of center tile in a 7x7 grid
+/** Grid dimensions — 11×11 grid with 6 rings (0=center, 5=frontier) */
+export const GRID_SIZE = 11
+export const GRID_CENTER = 5 // index of center tile in an 11x11 grid
 
-// ─── Tile Unlock Costs ────────────────────────────────────────────────────────
+// ─── Tile Unlock Costs (per ring) ─────────────────────────────────────────────
+// Ring 0: center (free). Rings 1-3: early/mid game. Rings 4-5: late/premium.
 export const TILE_UNLOCK_COSTS: Record<number, number> = {
-  0: 0,      // center tile — free
-  1: 100,    // ring 1 (4 edge × $100, 4 corner × $130)
-  2: 1_500,  // ring 2 (12 edge × $1,500, 4 corner × $1,950)
-  3: 12_500, // ring 3 (20 edge × $12,500, 4 corner × $16,250)
+  0: 0,          // center tile — free
+  1: 100,        // ring 1 — Starter Fields
+  2: 1_500,      // ring 2 — Expansion Zone
+  3: 12_500,     // ring 3 — Industrial Belt
+  4: 75_000,     // ring 4 — Deep Reserves (post-prestige territory)
+  5: 500_000,    // ring 5 — Frontier (endgame whale territory)
+}
+
+// ─── Ring Names (for UI display) ──────────────────────────────────────────────
+export const RING_NAMES: Record<number, string> = {
+  0: 'HQ',
+  1: 'Starter Fields',
+  2: 'Expansion Zone',
+  3: 'Industrial Belt',
+  4: 'Deep Reserves',
+  5: 'The Frontier',
+}
+
+// ─── Tile Traits ──────────────────────────────────────────────────────────────
+// Some tiles have special traits assigned at grid creation. Deterministic seeding
+// based on coordinates ensures the same traits appear for all players.
+export type TileTrait = 'normal' | 'rich' | 'gusher' | 'barren'
+
+export interface TileTraitDef {
+  trait: TileTrait
+  /** Production multiplier for buildings on this tile */
+  productionMultiplier: number
+  /** Label shown on hover */
+  label: string
+  /** Color accent for the tile border */
+  color: string
+}
+
+export const TILE_TRAITS: Record<TileTrait, TileTraitDef> = {
+  normal:  { trait: 'normal',  productionMultiplier: 1.0,  label: '',             color: '' },
+  rich:    { trait: 'rich',    productionMultiplier: 1.25, label: 'Rich Deposit',  color: 'border-amber-400/60' },
+  gusher:  { trait: 'gusher',  productionMultiplier: 1.75, label: 'Gusher!',      color: 'border-crude-400/80' },
+  barren:  { trait: 'barren',  productionMultiplier: 0.6,  label: 'Barren',       color: 'border-oil-600/40' },
 }
 
 // ─── Offline & Timing ─────────────────────────────────────────────────────────

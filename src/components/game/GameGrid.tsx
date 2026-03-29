@@ -9,9 +9,10 @@ export function GameGrid() {
 
   return (
     <div
-      className="grid gap-1 w-full max-w-[560px] aspect-square"
+      className="grid w-full max-w-[660px] aspect-square"
       style={{
         gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+        gap: GRID_SIZE > 9 ? '2px' : '4px',
       }}
     >
       {plots.map((plot) => (

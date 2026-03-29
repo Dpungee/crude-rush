@@ -34,6 +34,10 @@ export interface GridCell {
   level: number
   builtAt: string | null
   unlockCost: number
+  /** Ring distance from center (0=HQ, 5=frontier) */
+  ring: number
+  /** Tile trait affecting production: normal, rich, gusher, barren */
+  trait: 'normal' | 'rich' | 'gusher' | 'barren'
 }
 
 export interface BuildingDefinition {

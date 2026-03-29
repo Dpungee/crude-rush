@@ -119,11 +119,21 @@ export function GridCell({ cell }: GridCellProps) {
   const isTerminal = cell.building === 'oil_terminal'
   const metric = def ? getBuildingMetric(cell.building!, cell.level) : ''
 
+  const ring = cell.ring ?? 0
+  const trait = cell.trait ?? 'normal'
+  const isRareTile = trait === 'rich' || trait === 'gusher'
+
   // ── LOCKED ────────────────────────────────────────────────────────────────
   if (cell.status === 'locked') {
+    // Deeper rings are more fogged — creates visual depth
+    const fogOpacity = ring >= 5 ? 'opacity-[0.08]' : ring >= 4 ? 'opacity-[0.15]' : 'opacity-[0.25]'
     return (
-      <div className="relative aspect-square rounded-md bg-oil-950/60 border border-oil-900/15 flex items-center justify-center select-none">
-        <div className="w-1.5 h-1.5 rounded-full bg-oil-800/30" />
+      <div className={cn(
+        'relative aspect-square rounded-sm flex items-center justify-center select-none',
+        'bg-oil-950/60 border border-oil-900/10',
+        fogOpacity
+      )}>
+        <div className="w-1 h-1 rounded-full bg-oil-700/40" />
       </div>
     )
   }
@@ -134,17 +144,30 @@ export function GridCell({ cell }: GridCellProps) {
       <button
         onClick={handleClick}
         className={cn(
-          'relative aspect-square rounded-md border-2 border-dashed transition-all duration-200',
+          'relative aspect-square rounded-sm border-2 border-dashed transition-all duration-200',
           'flex flex-col items-center justify-center gap-0.5',
           'hover:scale-[1.05] active:scale-[0.97]',
           canAffordUnlock
-            ? 'border-crude-500/50 bg-crude-950/20 hover:bg-crude-900/30 hover:border-crude-400/70 animate-pulse-glow'
-            : 'border-oil-700/30 bg-oil-950/20 opacity-40'
+            ? trait === 'gusher'
+              ? 'border-crude-400/60 bg-crude-950/25 hover:bg-crude-900/35 hover:border-crude-300/80'
+              : trait === 'rich'
+                ? 'border-amber-500/50 bg-amber-950/15 hover:bg-amber-900/25 hover:border-amber-400/70'
+                : 'border-crude-500/40 bg-crude-950/15 hover:bg-crude-900/25 hover:border-crude-400/60'
+            : 'border-oil-700/20 bg-oil-950/10 opacity-30'
         )}
       >
-        <span className="text-[10px] leading-none select-none">🔓</span>
+        {/* Trait indicator for rare tiles */}
+        {isRareTile && (
+          <span className={cn(
+            'absolute top-0 left-0 text-[6px] px-0.5 rounded-br font-black leading-tight',
+            trait === 'gusher' ? 'bg-crude-500/30 text-crude-300' : 'bg-amber-500/20 text-amber-400'
+          )}>
+            {trait === 'gusher' ? '★' : '◆'}
+          </span>
+        )}
+        <span className="text-[9px] leading-none select-none">🔓</span>
         <span className={cn(
-          'text-[8px] font-bold leading-none tabular-nums',
+          'text-[7px] font-bold leading-none tabular-nums',
           canAffordUnlock ? 'text-crude-400' : 'text-oil-600'
         )}>
           ${formatCommas(cell.unlockCost)}
@@ -158,7 +181,7 @@ export function GridCell({ cell }: GridCellProps) {
     <button
       onClick={handleClick}
       className={cn(
-        'relative aspect-square rounded-md border transition-all duration-150 overflow-hidden',
+        'relative aspect-square rounded-sm border transition-all duration-150 overflow-hidden',
         'flex flex-col items-center justify-center',
         'hover:scale-[1.04] active:scale-[0.97]',
         def
@@ -173,9 +196,19 @@ export function GridCell({ cell }: GridCellProps) {
       {def ? (
         <>
           {/* Level badge — top-right */}
-          <div className="absolute top-0.5 right-0.5 z-10 text-[7px] font-black text-oil-400 bg-oil-900/80 px-0.5 rounded-sm leading-tight">
+          <div className="absolute top-0 right-0 z-10 text-[6px] font-black text-oil-300 bg-oil-950/80 px-0.5 rounded-bl leading-tight">
             {cell.level}
           </div>
+
+          {/* Trait badge — top-left (only for special tiles) */}
+          {isRareTile && (
+            <div className={cn(
+              'absolute top-0 left-0 z-10 text-[5px] px-0.5 rounded-br leading-tight font-black',
+              trait === 'gusher' ? 'bg-crude-500/30 text-crude-300' : 'bg-amber-500/20 text-amber-400'
+            )}>
+              {trait === 'gusher' ? '★' : '◆'}
+            </div>
+          )}
 
           {/* Building icon */}
           <span
