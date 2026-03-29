@@ -10,6 +10,7 @@ import {
   VALIDATION_TOLERANCE,
 } from '@/engine/constants'
 import { MISSION_DEFINITIONS } from '@/data/missions'
+import { computeSeasonScore } from '@/engine/season'
 import type { UpgradeType, GridCell, MissionProgress } from '@/engine/types'
 
 // ── Per-wallet save rate limiting ─────────────────────────────────────────────
@@ -347,6 +348,72 @@ export async function POST(request: Request) {
             metadata: { source: 'barrel_milestone', serverLifetimeBarrels },
           }))
         )
+      }
+    }
+
+    // ── Season delta tracking ──────────────────────────────────────────────
+    // Compute incremental deltas from prevState and upsert to season_entries.
+    // This is the ONLY place season scores update — fully server-side.
+    if (prevState && prevPlayer) {
+      try {
+        const { data: activeSeason } = await supabase
+          .from('seasons')
+          .select('id')
+          .eq('status', 'active')
+          .single()
+
+        if (activeSeason) {
+          // Compute incremental deltas since last save
+          const barrelsDelta = Math.max(0, serverLifetimeBarrels - (prevState.server_lifetime_barrels ?? 0))
+          const petroDelta = Math.max(0, (gameState.lifetime_petrodollars ?? 0) - (prevPlayer.lifetime_petrodollars ?? 0))
+
+          // Tiles: count actual unlocked tiles vs previous
+          const prevTiles = prevState.unlocked_tile_count ?? 1
+          const newTiles = Math.max(1, gameState.unlocked_tile_count ?? 1)
+          const tilesDelta = Math.max(0, newTiles - prevTiles)
+
+          // Upgrades: sum all upgrade levels
+          const sumUpgrades = (u: Record<string, number>) => Object.values(u).reduce((a, b) => a + (b || 0), 0)
+          const prevUpgradeSum = sumUpgrades(prevState.upgrades_data ?? {})
+          const newUpgradeSum = sumUpgrades(upgradesData)
+          const upgradesDelta = Math.max(0, newUpgradeSum - prevUpgradeSum)
+
+          // Prestige
+          const prestigeDelta = Math.max(0, prestigeLevel - (prevPlayer.prestige_level ?? 0))
+
+          // Only upsert if there's actual activity
+          if (barrelsDelta > 0 || petroDelta > 0 || tilesDelta > 0 || upgradesDelta > 0 || prestigeDelta > 0) {
+            // Upsert with incremental adds
+            const { data: existingEntry } = await supabase
+              .from('season_entries')
+              .select('season_barrels, season_petrodollars, season_tiles_unlocked, season_upgrades_bought, season_prestiges')
+              .eq('season_id', activeSeason.id)
+              .eq('wallet_address', walletAddress)
+              .single()
+
+            const newBarrels = (existingEntry?.season_barrels ?? 0) + barrelsDelta
+            const newPetro = (existingEntry?.season_petrodollars ?? 0) + petroDelta
+            const newTilesTotal = (existingEntry?.season_tiles_unlocked ?? 0) + tilesDelta
+            const newUpgradesTotal = (existingEntry?.season_upgrades_bought ?? 0) + upgradesDelta
+            const newPrestigesTotal = (existingEntry?.season_prestiges ?? 0) + prestigeDelta
+            const newScore = computeSeasonScore(newBarrels, newPetro, newTilesTotal, newUpgradesTotal, newPrestigesTotal)
+
+            await supabase.from('season_entries').upsert({
+              season_id: activeSeason.id,
+              wallet_address: walletAddress,
+              season_barrels: newBarrels,
+              season_petrodollars: newPetro,
+              season_tiles_unlocked: newTilesTotal,
+              season_upgrades_bought: newUpgradesTotal,
+              season_prestiges: newPrestigesTotal,
+              score: newScore,
+              updated_at: dbNow,
+            }, { onConflict: 'season_id,wallet_address' })
+          }
+        }
+      } catch (seasonErr) {
+        // Non-critical — don't fail the save if season tracking fails
+        console.error('[save] Season tracking error:', seasonErr)
       }
     }
 
