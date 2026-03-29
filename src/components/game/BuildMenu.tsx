@@ -102,7 +102,8 @@ export function BuildMenu() {
     const success = buildOnCell(selectedCell.x, selectedCell.y, type)
     if (success) {
       trackEvent('building_built', 1)
-      addToast({ message: `Built ${BUILDING_DEFINITIONS[type].name}!`, type: 'success' })
+      const def = BUILDING_DEFINITIONS[type]
+      addToast({ message: `${def.emoji} ${def.name} constructed! -$${formatCommas(getBuildingCost(type, 1))}`, type: 'success' })
       clearSelection()
     }
   }
@@ -112,7 +113,8 @@ export function BuildMenu() {
     const success = upgradeBuilding(selectedCell.x, selectedCell.y)
     if (success) {
       trackEvent('building_upgraded', 1)
-      addToast({ message: `Upgraded to Lv.${plot.level + 1}!`, type: 'success' })
+      const def = BUILDING_DEFINITIONS[plot.building]
+      addToast({ message: `⬆️ ${def.name} → Lv.${plot.level + 1}`, type: 'success' })
       clearSelection()
     }
   }

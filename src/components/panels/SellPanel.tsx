@@ -124,7 +124,11 @@ export function SellPanel() {
               : 'bg-oil-800/30 text-muted-foreground/40 cursor-not-allowed'
           )}
         >
-          {crudeOil >= 1 ? `Sell All Crude — +$${formatCommas(totalCrudeValue)}` : 'No crude to sell'}
+          {crudeOil >= 1
+            ? isMarketHot
+              ? `🔥 Sell Now — +$${formatCommas(totalCrudeValue)}`
+              : `Sell All Crude — +$${formatCommas(totalCrudeValue)}`
+            : 'No crude to sell'}
         </button>
       </div>
 
