@@ -281,12 +281,14 @@ export function GameShell() {
       <TopBar />
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex items-center justify-center p-4 relative">
+        {/* Grid area — centered with subtle grid background */}
+        <div className="flex-1 flex items-center justify-center p-3 relative bg-grid-pattern">
           <GameGrid />
           <BuildMenu />
         </div>
 
-        <div className="w-80 xl:w-96 border-l border-oil-800 overflow-y-auto">
+        {/* Side panel */}
+        <div className="w-80 xl:w-96 border-l border-oil-800/60 overflow-y-auto bg-oil-950/50 backdrop-blur-sm">
           <SidePanel />
         </div>
       </div>

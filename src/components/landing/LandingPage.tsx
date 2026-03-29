@@ -47,26 +47,22 @@ export function LandingPage() {
         </button>
 
         {/* Features */}
-        <div className="mt-16 grid grid-cols-3 gap-6 text-center">
-          <div>
-            <div className="text-3xl mb-2">⛽</div>
-            <div className="text-sm font-semibold text-foreground">Idle Production</div>
-            <div className="text-xs text-muted-foreground">Wells pump while you sleep</div>
-          </div>
-          <div>
-            <div className="text-3xl mb-2">📈</div>
-            <div className="text-sm font-semibold text-foreground">Deep Upgrades</div>
-            <div className="text-xs text-muted-foreground">Wells, refineries, prestige</div>
-          </div>
-          <div>
-            <div className="text-3xl mb-2">🏆</div>
-            <div className="text-sm font-semibold text-foreground">On-Chain</div>
-            <div className="text-xs text-muted-foreground">Wallet-linked, Solana-native</div>
-          </div>
+        <div className="mt-16 grid grid-cols-3 gap-4 md:gap-8 text-center">
+          {[
+            { icon: '⛽', title: 'Idle Empire', desc: 'Wells pump while you sleep' },
+            { icon: '🪙', title: 'Earn $CRUDE', desc: 'Real tokens for real progress' },
+            { icon: '🏆', title: 'Compete', desc: 'Leaderboards · Prestige · NFTs' },
+          ].map((f) => (
+            <div key={f.title} className="bg-oil-900/40 border border-oil-800/40 rounded-xl p-4 hover:border-crude-600/30 transition-colors">
+              <div className="text-3xl mb-2">{f.icon}</div>
+              <div className="text-sm font-bold text-foreground">{f.title}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{f.desc}</div>
+            </div>
+          ))}
         </div>
 
-        <p className="mt-12 text-xs text-muted-foreground/50">
-          Built on Solana. Your empire, your wallet.
+        <p className="mt-12 text-xs text-muted-foreground/40">
+          121 plots · 6 building types · On-chain rewards · Built on Solana
         </p>
       </div>
     </div>
