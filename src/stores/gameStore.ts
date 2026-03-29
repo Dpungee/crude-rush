@@ -7,9 +7,6 @@ import { getUpgradeCost, canPurchaseUpgrade, createInitialUpgrades } from '@/eng
 import { createInitialGrid, performPrestige, canPrestige } from '@/engine/prestige'
 import { getLevelFromXP, xpFromSale, XP_BUILDING_BUILT, XP_BUILDING_UPGRADED, XP_TILE_UNLOCKED, XP_UPGRADE_PURCHASED } from '@/engine/xp'
 import { getMarketMultiplier } from '@/engine/market'
-// Lazy-loaded to avoid circular deps — imported at top but accessed via function
-import { useEventStore } from '@/stores/eventStore'
-import { useMarketStore } from '@/stores/marketStore'
 import {
   STARTING_PETRODOLLARS,
   STARTING_STORAGE,
@@ -28,9 +25,18 @@ import {
 
 // Use the shared createInitialUpgrades from engine/upgrades.ts (imported above)
 
+// ── Lazy store accessors ─────────────────────────────────────────────────────
+// We cannot import eventStore/marketStore at module top level because Zustand
+// stores run create() on import. If gameStore loads before them (or vice versa),
+// we get "cannot access before initialization" errors. Instead, we require()
+// them lazily inside functions — by the time these functions run, all stores
+// are guaranteed to be initialized.
+
 /** Get the current event time multiplier for construction */
 function getEventTimeMultiplier(): number {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useEventStore } = require('@/stores/eventStore')
     return useEventStore.getState().getEffectiveModifiers().upgradeTimeMultiplier ?? 1.0
   } catch {
     return 1.0
@@ -40,10 +46,21 @@ function getEventTimeMultiplier(): number {
 /** Get current market prices from the server-authoritative market store */
 function getServerMarketPrices(): { crudeMult: number; refinedMult: number } {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useMarketStore } = require('@/stores/marketStore')
     const ms = useMarketStore.getState()
     if (ms.updatedAt) return { crudeMult: ms.crudeMult, refinedMult: ms.refinedMult }
-  } catch { /* first load */ }
+  } catch { /* first load — stores not ready yet */ }
   return { crudeMult: 1.0, refinedMult: 1.0 }
+}
+
+/** Tick down the market countdown timer */
+function tickMarketCountdown(): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useMarketStore } = require('@/stores/marketStore')
+    useMarketStore.getState().tickCountdown()
+  } catch { /* ok */ }
 }
 
 export function createInitialGameState(): GameState {
@@ -143,7 +160,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Pull server-authoritative market price from marketStore
     const { crudeMult: serverCrudeMult } = getServerMarketPrices()
-    try { useMarketStore.getState().tickCountdown() } catch { /* ok */ }
+    tickMarketCountdown()
 
     const stateWithMarket = { ...state, marketMultiplier: serverCrudeMult || state.marketMultiplier }
     const newState = tick(stateWithMarket, deltaMs)
