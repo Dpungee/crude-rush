@@ -5,6 +5,7 @@ import { createSignMessage, signJWT } from '@/lib/wallet-auth'
 import { getServiceSupabase, isSupabaseConfigured } from '@/lib/supabase-server'
 import { getNonce, clearNonce, verifySignedNonce } from '@/lib/nonce-store'
 import { createInitialGrid } from '@/engine/prestige'
+import { createInitialUpgrades } from '@/engine/upgrades'
 import { STARTING_PETRODOLLARS, STARTING_STORAGE } from '@/engine/constants'
 
 export async function POST(request: Request) {
@@ -153,13 +154,7 @@ export async function POST(request: Request) {
           petrodollars: STARTING_PETRODOLLARS,
           plots_data: createInitialGrid(),
           unlocked_tile_count: 1,
-          upgrades_data: {
-            extraction_speed: 0,
-            storage_expansion: 0,
-            refinery_efficiency: 0,
-            auto_sell: 0,
-            offline_duration: 0,
-          },
+          upgrades_data: createInitialUpgrades(),
           production_rate: 0,
           storage_capacity: STARTING_STORAGE,
           refinery_rate: 0,

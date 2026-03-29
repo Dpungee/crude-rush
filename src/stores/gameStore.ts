@@ -3,7 +3,7 @@ import type { GameState, BuildingType, UpgradeType, ServerGameState } from '@/en
 import { tick } from '@/engine/tick'
 import { recalculateDerivedStats } from '@/engine/production'
 import { getBuildingCost, getBuildingUpgradeCost, isBuildingAvailable } from '@/engine/buildings'
-import { getUpgradeCost, canPurchaseUpgrade } from '@/engine/upgrades'
+import { getUpgradeCost, canPurchaseUpgrade, createInitialUpgrades } from '@/engine/upgrades'
 import { createInitialGrid, performPrestige, canPrestige } from '@/engine/prestige'
 import { getLevelFromXP, xpFromSale, XP_BUILDING_BUILT, XP_BUILDING_UPGRADED, XP_TILE_UNLOCKED, XP_UPGRADE_PURCHASED } from '@/engine/xp'
 import { getMarketMultiplier } from '@/engine/market'
@@ -20,15 +20,7 @@ import {
   MAX_BUILDING_LEVEL,
 } from '@/engine/constants'
 
-function createInitialUpgrades(): Record<UpgradeType, number> {
-  return {
-    extraction_speed: 0,
-    storage_expansion: 0,
-    refinery_efficiency: 0,
-    auto_sell: 0,
-    offline_duration: 0,
-  }
-}
+// Use the shared createInitialUpgrades from engine/upgrades.ts (imported above)
 
 export function createInitialGameState(): GameState {
   return {

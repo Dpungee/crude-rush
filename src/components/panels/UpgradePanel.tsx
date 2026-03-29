@@ -47,6 +47,23 @@ function getUpgradeStatLabel(type: UpgradeType, level: number): { current: strin
       const nxt = getMaxOfflineSeconds(level + 1) / 3600
       return { current: `${cur.toFixed(0)}h offline`, next: `${nxt.toFixed(0)}h` }
     }
+    case 'market_intel': {
+      const cur = (level * 3)
+      const nxt = ((level + 1) * 3)
+      return { current: cur > 0 ? `+${cur}% floor` : 'Off', next: `+${nxt}% floor` }
+    }
+    case 'deep_drilling': {
+      const cur = 1 + level * 0.20
+      const nxt = 1 + (level + 1) * 0.20
+      return { current: cur > 1 ? `${cur.toFixed(2)}× ring 3+` : 'Off', next: `${nxt.toFixed(2)}×` }
+    }
+    case 'logistics': {
+      const cur = level * 8
+      const nxt = (level + 1) * 8
+      return { current: cur > 0 ? `-${cur}% unlock cost` : 'Off', next: `-${nxt}%` }
+    }
+    default:
+      return { current: '', next: '' }
   }
 }
 

@@ -1,6 +1,6 @@
 import type { GridCell, UpgradeType } from './types'
 import { getBuildingProduction, getBuildingStorageBonus, getBuildingRefineryRate, BUILDING_DEFINITIONS } from './buildings'
-import { getExtractionSpeedMultiplier, getStorageExpansionMultiplier, getRefineryEfficiencyMultiplier } from './upgrades'
+import { getExtractionSpeedMultiplier, getStorageExpansionMultiplier, getRefineryEfficiencyMultiplier, getDeepDrillingMultiplier } from './upgrades'
 import { STARTING_STORAGE, TILE_TRAITS } from './constants'
 
 /** Building types that produce crude oil */
@@ -48,7 +48,10 @@ export function calculateProductionRate(
     const base = getBuildingProduction(plot.building, plot.level)
     const aura = getAuraMultiplier(plots, plot.x, plot.y)
     const traitMult = TILE_TRAITS[plot.trait ?? 'normal']?.productionMultiplier ?? 1.0
-    totalProduction += base * aura * traitMult
+    // Deep Drilling bonus: extra production on ring 3+ tiles
+    const ring = plot.ring ?? 0
+    const deepDrillMult = ring >= 3 ? getDeepDrillingMultiplier(upgrades.deep_drilling ?? 0) : 1.0
+    totalProduction += base * aura * traitMult * deepDrillMult
   }
 
   const speedMultiplier = getExtractionSpeedMultiplier(upgrades.extraction_speed)

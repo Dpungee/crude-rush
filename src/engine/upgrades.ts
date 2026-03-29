@@ -55,6 +55,38 @@ export const UPGRADE_DEFINITIONS: Record<UpgradeType, UpgradeDefinition> = {
     maxLevel: 8,
     effectPerLevel: 7_200, // seconds (+2h)
   },
+
+  // ── Mid/Late Game Upgrades ──────────────────────────────────────────────
+  market_intel: {
+    type: 'market_intel',
+    name: 'Market Intel',
+    description: 'Narrows market lows: +3% minimum sell price per level.',
+    emoji: '📡',
+    baseCost: 5_000,
+    costExponent: 2.5,
+    maxLevel: 5,
+    effectPerLevel: 0.03, // +3% market floor per level → L5 = floor at 0.95x instead of 0.80x
+  },
+  deep_drilling: {
+    type: 'deep_drilling',
+    name: 'Deep Drilling',
+    description: 'Unlocks deeper reserves. +20% production from ring 3+ tiles per level.',
+    emoji: '⛏️',
+    baseCost: 25_000,
+    costExponent: 2.8,
+    maxLevel: 5,
+    effectPerLevel: 0.20, // +20% per level on ring 3+ buildings → L5 = 2.0×
+  },
+  logistics: {
+    type: 'logistics',
+    name: 'Logistics Network',
+    description: 'Reduces tile unlock costs by 8% per level.',
+    emoji: '🚛',
+    baseCost: 10_000,
+    costExponent: 2.5,
+    maxLevel: 5,
+    effectPerLevel: 0.08, // -8% tile cost per level → L5 = 60% of original
+  },
 }
 
 /**
@@ -117,7 +149,25 @@ export function createInitialUpgrades(): Record<UpgradeType, number> {
     refinery_efficiency: 0,
     auto_sell: 0,
     offline_duration: 0,
+    market_intel: 0,
+    deep_drilling: 0,
+    logistics: 0,
   }
+}
+
+/** Market Intel: raises the minimum market multiplier floor */
+export function getMarketFloorBonus(level: number): number {
+  return UPGRADE_DEFINITIONS.market_intel.effectPerLevel * level
+}
+
+/** Deep Drilling: production bonus for buildings on ring 3+ tiles */
+export function getDeepDrillingMultiplier(level: number): number {
+  return 1 + UPGRADE_DEFINITIONS.deep_drilling.effectPerLevel * level
+}
+
+/** Logistics: tile unlock cost discount fraction (e.g. 0.24 = 24% off at L3) */
+export function getLogisticsDiscount(level: number): number {
+  return UPGRADE_DEFINITIONS.logistics.effectPerLevel * level
 }
 
 /** Auto-sell rate as a fraction of market price (50% base + 10% per level above 1) */

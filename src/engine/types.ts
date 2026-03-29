@@ -17,6 +17,9 @@ export type UpgradeType =
   | 'refinery_efficiency'
   | 'auto_sell'
   | 'offline_duration'
+  | 'market_intel'
+  | 'deep_drilling'
+  | 'logistics'
 
 export type TileStatus = 'locked' | 'available' | 'unlocked'
 
