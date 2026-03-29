@@ -219,12 +219,36 @@ export function GridCell({ cell }: GridCellProps) {
     >
       {/* ── Ground pad — concrete/steel platform for buildings ──────────── */}
       {def && (
-        <div className="absolute inset-[8%] rounded-[2px]"
-          style={{
-            background: 'linear-gradient(180deg, rgba(60,55,45,0.5) 0%, rgba(40,35,28,0.6) 100%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
-          }}
-        />
+        <>
+          {/* Dirt road tracks leading to edges (where pipes connect) */}
+          <div className="absolute top-0 left-[40%] right-[40%] h-[12%]"
+            style={{ background: 'linear-gradient(180deg, rgba(70,60,42,0.25), transparent)' }} />
+          <div className="absolute bottom-0 left-[40%] right-[40%] h-[12%]"
+            style={{ background: 'linear-gradient(0deg, rgba(70,60,42,0.25), transparent)' }} />
+          <div className="absolute left-0 top-[40%] bottom-[40%] w-[12%]"
+            style={{ background: 'linear-gradient(90deg, rgba(70,60,42,0.25), transparent)' }} />
+          <div className="absolute right-0 top-[40%] bottom-[40%] w-[12%]"
+            style={{ background: 'linear-gradient(270deg, rgba(70,60,42,0.25), transparent)' }} />
+
+          {/* Concrete pad */}
+          <div className="absolute inset-[8%] rounded-[2px]"
+            style={{
+              background: 'linear-gradient(180deg, rgba(60,55,45,0.5) 0%, rgba(40,35,28,0.6) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.4)',
+              borderBottom: '1px solid rgba(0,0,0,0.2)',
+            }}
+          />
+
+          {/* Hazard corners on refinery/terminal pads */}
+          {(isRefinery || isTerminal) && (
+            <>
+              <div className="absolute top-[7%] left-[7%] w-[4px] h-[1px]"
+                style={{ background: 'repeating-linear-gradient(90deg, rgba(234,179,8,0.2) 0px, rgba(234,179,8,0.2) 1px, transparent 1px, transparent 2px)' }} />
+              <div className="absolute top-[7%] right-[7%] w-[4px] h-[1px]"
+                style={{ background: 'repeating-linear-gradient(90deg, rgba(234,179,8,0.2) 0px, rgba(234,179,8,0.2) 1px, transparent 1px, transparent 2px)' }} />
+            </>
+          )}
+        </>
       )}
 
       {/* ── Empty plot pad (no building) ────────────────────────────────── */}

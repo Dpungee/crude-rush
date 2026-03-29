@@ -2,6 +2,7 @@
 
 import { useGameStore } from '@/stores/gameStore'
 import { GridCell } from './GridCell'
+import { PipelineOverlay } from './PipelineOverlay'
 import { GRID_SIZE } from '@/engine/constants'
 
 export function GameGrid() {
@@ -31,17 +32,22 @@ export function GameGrid() {
         />
 
         {/* Grid — seamless tiles, 1px gaps simulate terrain cracks */}
-        <div
-          className="relative grid w-full aspect-square z-[2]"
-          style={{
-            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-            gap: '1px',
-            backgroundColor: '#0d0b08', // gap color = dark earth
-          }}
-        >
-          {plots.map((plot) => (
-            <GridCell key={`${plot.x}-${plot.y}`} cell={plot} />
-          ))}
+        <div className="relative">
+          <div
+            className="relative grid w-full aspect-square z-[2]"
+            style={{
+              gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+              gap: '1px',
+              backgroundColor: '#0d0b08',
+            }}
+          >
+            {plots.map((plot) => (
+              <GridCell key={`${plot.x}-${plot.y}`} cell={plot} />
+            ))}
+          </div>
+
+          {/* Pipeline connections between adjacent buildings */}
+          <PipelineOverlay plots={plots} />
         </div>
       </div>
     </div>
