@@ -38,3 +38,23 @@ export function pct(value: number, max: number): number {
   if (max <= 0) return 0
   return Math.min(100, Math.max(0, (value / max) * 100))
 }
+
+/**
+ * Get the player's title based on lifetime barrels.
+ * Matches BARREL_MILESTONES titles from constants.ts.
+ */
+export function getPlayerTitle(lifetimeBarrels: number): string | null {
+  // Import-free: hardcode the thresholds to avoid circular deps
+  const titles: [number, string][] = [
+    [1_000_000_000, 'Crude Rush Legend'],
+    [100_000_000, 'Magnate'],
+    [10_000_000, 'Tycoon'],
+    [1_000_000, 'Oil Baron'],
+    [100_000, 'Wildcatter'],
+    [10_000, 'Roughneck'],
+  ]
+  for (const [threshold, title] of titles) {
+    if (lifetimeBarrels >= threshold) return title
+  }
+  return null
+}

@@ -4,7 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useGameStore } from '@/stores/gameStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { ResourceCounter } from './ResourceCounter'
-import { truncateWallet, formatNumber } from '@/lib/utils'
+import { truncateWallet, formatNumber, getPlayerTitle } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 export function TopBar() {
@@ -16,7 +16,10 @@ export function TopBar() {
   const marketMultiplier = useGameStore((s) => s.marketMultiplier)
   const xpLevel = useGameStore((s) => s.xpLevel)
   const productionRate = useGameStore((s) => s.productionRate)
+  const lifetimeBarrels = useGameStore((s) => s.lifetimeBarrels)
   const loginStreak = usePlayerStore((s) => s.loginStreak)
+
+  const playerTitle = getPlayerTitle(lifetimeBarrels)
 
   const marketDelta = ((marketMultiplier - 1) * 100).toFixed(0)
   const isMarketUp = marketMultiplier >= 1.05
@@ -65,8 +68,14 @@ export function TopBar() {
         </div>
       </div>
 
-      {/* Right: XP level + streak + wallet */}
+      {/* Right: Title + XP level + streak + wallet */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {playerTitle && (
+          <div className="hidden md:flex items-center gap-1 bg-crude-950/40 px-2 py-0.5 rounded-full border border-crude-700/30">
+            <span className="text-[10px] font-bold text-crude-400">{playerTitle}</span>
+          </div>
+        )}
+
         {xpLevel > 0 && (
           <div className="hidden sm:flex items-center gap-1 bg-oil-800/60 px-2 py-0.5 rounded-full border border-oil-700/30">
             <span className="text-[9px]">⭐</span>
