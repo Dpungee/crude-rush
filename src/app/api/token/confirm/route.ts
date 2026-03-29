@@ -9,10 +9,10 @@ export async function POST(request: Request) {
   const { walletAddress } = auth
 
   try {
-    const { claimId, txSignature, ledgerIds } = await request.json()
+    const { claimId, txSignature } = await request.json()
 
-    if (!claimId || !txSignature || !Array.isArray(ledgerIds) || ledgerIds.length === 0) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!claimId || !txSignature) {
+      return NextResponse.json({ error: 'Missing claimId or txSignature' }, { status: 400 })
     }
 
     // Validate txSignature format (base58, 87-88 chars)
@@ -20,17 +20,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid transaction signature format' }, { status: 400 })
     }
 
-    // Cap ledgerIds to prevent abuse (no legitimate claim has 1000+ entries)
-    if (ledgerIds.length > 500) {
-      return NextResponse.json({ error: 'Too many ledger entries' }, { status: 400 })
-    }
-
     const supabase = getServiceSupabase()
 
     // ── Replay protection ─────────────────────────────────────────────────
     const { data: existingClaim } = await supabase
       .from('on_chain_claims')
-      .select('id, status, tx_signature, amount')
+      .select('id, status, tx_signature, amount, ledger_ids')
       .eq('id', claimId)
       .eq('wallet_address', walletAddress)
       .single()
@@ -200,25 +195,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Settlement failed — try again' }, { status: 500 })
     }
 
-    // Step 2: Settle ledger entries.
+    // Step 2: Settle reserved ledger entries using SERVER-STORED IDs.
+    // We never trust the client's ledger IDs — use the claim's ledger_ids.
+    const serverLedgerIds: string[] = existingClaim.ledger_ids ?? []
     const nowIso = new Date().toISOString()
-    const { error: ledgerError } = await supabase
-      .from('token_ledger')
-      .update({ settled: true, settled_at: nowIso })
-      .in('id', ledgerIds)
-      .eq('wallet_address', walletAddress)
-      .eq('settled', false) // only settle unsettled entries
 
-    if (ledgerError) {
-      // Claim is confirmed but ledger settlement failed.
-      // Log for manual recovery — tokens are already on-chain.
-      console.error('[confirm] Ledger settlement failed:', ledgerError)
-      await supabase.from('token_audit_log').insert({
-        wallet_address: walletAddress,
-        action: 'settlement',
-        reference_id: claimId,
-        metadata: { error: 'ledger_update_failed', txSignature, ledgerIds },
-      })
+    if (serverLedgerIds.length > 0) {
+      const { error: ledgerError } = await supabase
+        .from('token_ledger')
+        .update({ settled: true, settled_at: nowIso, reserved_by_claim_id: claimId })
+        .in('id', serverLedgerIds)
+        .eq('wallet_address', walletAddress)
+        .eq('settled', false)
+
+      if (ledgerError) {
+        console.error('[confirm] Ledger settlement failed:', ledgerError)
+        await supabase.from('token_audit_log').insert({
+          wallet_address: walletAddress,
+          action: 'settlement',
+          reference_id: claimId,
+          metadata: { error: 'ledger_update_failed', txSignature, ledgerCount: serverLedgerIds.length },
+        })
+      }
     }
 
     // ── Audit log ──────────────────────────────────────────────────────
@@ -227,7 +225,7 @@ export async function POST(request: Request) {
       action: 'claim_confirmed',
       amount: Number(BigInt(existingClaim.amount ?? 0)),
       reference_id: claimId,
-      metadata: { txSignature, ledgerCount: ledgerIds.length },
+      metadata: { txSignature, ledgerCount: serverLedgerIds.length },
     })
 
     return NextResponse.json({ success: true, txSignature })

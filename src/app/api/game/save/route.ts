@@ -11,44 +11,15 @@ import {
 } from '@/engine/constants'
 import { MISSION_DEFINITIONS } from '@/data/missions'
 import { computeSeasonScore } from '@/engine/season'
+import { checkRateLimit } from '@/lib/rate-limit'
 import type { UpgradeType, GridCell, MissionProgress } from '@/engine/types'
 
-// ── Per-wallet save rate limiting ─────────────────────────────────────────────
 const MIN_SAVE_INTERVAL_MS = 15_000
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __saveRateLimiter: Map<string, number> | undefined
-}
-const saveLastAt = (global.__saveRateLimiter ??= new Map<string, number>())
-
-setInterval(
-  () => {
-    const cutoff = Date.now() - 5 * 60_000
-    for (const [wallet, ts] of saveLastAt) {
-      if (ts < cutoff) saveLastAt.delete(wallet)
-    }
-  },
-  10 * 60_000
-)
 
 export async function POST(request: Request) {
   const auth = requireAuth(request)
   if (auth instanceof NextResponse) return auth
   const { walletAddress } = auth
-
-  // ── Rate limit ────────────────────────────────────────────────────────
-  const now = Date.now()
-  const lastSave = saveLastAt.get(walletAddress) ?? 0
-  const elapsed = now - lastSave
-  if (elapsed < MIN_SAVE_INTERVAL_MS) {
-    const retryAfterSec = Math.ceil((MIN_SAVE_INTERVAL_MS - elapsed) / 1000)
-    return NextResponse.json(
-      { error: 'Save too frequent', retryAfter: retryAfterSec },
-      { status: 429, headers: { 'Retry-After': String(retryAfterSec) } }
-    )
-  }
-  saveLastAt.set(walletAddress, now)
 
   try {
     const body = await request.json()
@@ -61,6 +32,17 @@ export async function POST(request: Request) {
     // ── Dev mode ──────────────────────────────────────────────────────────
     if (!isSupabaseConfigured()) {
       return NextResponse.json({ success: true })
+    }
+
+    // ── Durable rate limit (survives lambda cold starts) ─────────────────
+    const supabase = getServiceSupabase()
+    const rl = await checkRateLimit(supabase, `save:${walletAddress}`, MIN_SAVE_INTERVAL_MS)
+    if (!rl.allowed) {
+      const retryAfterSec = Math.ceil(rl.retryAfterMs / 1000)
+      return NextResponse.json(
+        { error: 'Save too frequent', retryAfter: retryAfterSec },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSec) } }
+      )
     }
 
     // ── Input validation ──────────────────────────────────────────────────
@@ -113,8 +95,6 @@ export async function POST(request: Request) {
     )
 
     // ── Load previous state for delta validation ───────────────────────────
-    const supabase = getServiceSupabase()
-
     const { data: prevState } = await supabase
       .from('game_states')
       .select('version, crude_oil, refined_oil, petrodollars, last_tick_at, server_lifetime_barrels, plots_data, upgrades_data, unlocked_tile_count')
