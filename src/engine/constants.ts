@@ -143,10 +143,14 @@ export const CONSTRUCTION_BASE_SECONDS: Record<BuildingType, number> = {
   refinery: 45,       // L1: 45s, L10: 1423s (~24min)
 }
 
-/** Construction time in seconds: base × targetLevel^1.5 */
-export function getConstructionTime(type: BuildingType, targetLevel: number): number {
+/**
+ * Construction time in seconds: base × targetLevel^1.5 × eventMultiplier
+ * @param eventTimeMultiplier - from active events (e.g. 0.5 = half time). Default 1.0.
+ */
+export function getConstructionTime(type: BuildingType, targetLevel: number, eventTimeMultiplier = 1.0): number {
   const base = CONSTRUCTION_BASE_SECONDS[type]
-  return Math.floor(base * Math.pow(Math.max(1, targetLevel), 1.5))
+  const raw = base * Math.pow(Math.max(1, targetLevel), 1.5)
+  return Math.max(1, Math.floor(raw * eventTimeMultiplier))
 }
 
 /** Max simultaneous constructions (1 free, expandable later) */

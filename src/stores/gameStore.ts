@@ -25,6 +25,18 @@ import {
 
 // Use the shared createInitialUpgrades from engine/upgrades.ts (imported above)
 
+/** Get the current event time multiplier for construction (lazy import to avoid circular deps) */
+function getEventTimeMultiplier(): number {
+  try {
+    // Dynamic require avoids circular dependency — eventStore doesn't depend on gameStore
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useEventStore } = require('@/stores/eventStore')
+    return useEventStore.getState().getEffectiveModifiers().upgradeTimeMultiplier ?? 1.0
+  } catch {
+    return 1.0
+  }
+}
+
 export function createInitialGameState(): GameState {
   return {
     crudeOil: 0,
@@ -204,13 +216,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const cost = getBuildingCost(buildingType, 1)
     if (state.petrodollars < cost) return false
 
-    const constructionTime = getConstructionTime(buildingType, 1)
+    // Apply event time modifier if available (e.g. Speed Build Week = 0.5x)
+    const eventTimeMult = getEventTimeMultiplier()
+    const constructionTime = getConstructionTime(buildingType, 1, eventTimeMult)
     const endsAt = new Date(Date.now() + constructionTime * 1000).toISOString()
 
     const newPlots = [...state.plots]
     newPlots[plotIndex] = {
       ...plot,
-      // Building NOT set until construction completes — no production yet
       constructionType: buildingType,
       constructionLevel: 1,
       constructionEndsAt: endsAt,
@@ -244,7 +257,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.petrodollars < cost) return false
 
     const targetLevel = plot.level + 1
-    const constructionTime = getConstructionTime(plot.building, targetLevel)
+    const eventTimeMult2 = getEventTimeMultiplier()
+    const constructionTime = getConstructionTime(plot.building, targetLevel, eventTimeMult2)
     const endsAt = new Date(Date.now() + constructionTime * 1000).toISOString()
 
     const newPlots = [...state.plots]
