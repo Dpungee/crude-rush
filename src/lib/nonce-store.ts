@@ -40,8 +40,22 @@ setInterval(() => {
 const NONCE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 // ── Signed nonce helpers (serverless without Supabase) ────────────────────────
+let _ephemeralHmacKey: string | null = null
+
 function getHmacKey(): string {
-  return process.env.JWT_SECRET || 'crude-rush-dev-secret-change-in-prod'
+  const secret = process.env.JWT_SECRET
+  if (secret) return secret
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set in production for signed nonces.')
+  }
+
+  // Dev: ephemeral per-process key. No hardcoded fallback.
+  if (!_ephemeralHmacKey) {
+    _ephemeralHmacKey = crypto.randomBytes(32).toString('hex')
+    console.warn('[nonce] Using ephemeral HMAC key — set JWT_SECRET in .env.local')
+  }
+  return _ephemeralHmacKey
 }
 
 /** Create a self-verifying nonce: random.expiry.hmac */

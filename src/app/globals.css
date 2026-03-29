@@ -35,26 +35,22 @@
 }
 
 /* Custom scrollbar for dark theme */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: hsl(230 30% 6%);
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(230 15% 25%);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(230 15% 35%);
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: hsl(230 30% 6%); }
+::-webkit-scrollbar-thumb { background: hsl(230 15% 22%); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(230 15% 32%); }
 
-/* Game-specific animations */
+/* ─── Game Animations ───────────────────────────────────────────────────── */
 @layer utilities {
+  /* ── Text effects ── */
   .text-glow-gold {
     text-shadow: 0 0 10px rgba(212, 160, 23, 0.5), 0 0 20px rgba(212, 160, 23, 0.3);
   }
+  .text-glow-green {
+    text-shadow: 0 0 8px rgba(46, 204, 113, 0.5), 0 0 16px rgba(46, 204, 113, 0.2);
+  }
 
+  /* ── Grid background ── */
   .bg-grid-pattern {
     background-image:
       linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
@@ -71,7 +67,7 @@
     );
   }
 
-  /* Building type glow utilities */
+  /* ── Building type glows ── */
   .glow-amber  { box-shadow: 0 0 12px rgba(217, 119, 6, 0.35); }
   .glow-sky    { box-shadow: 0 0 12px rgba(3, 105, 161, 0.35); }
   .glow-violet { box-shadow: 0 0 12px rgba(124, 58, 237, 0.35); }
@@ -80,20 +76,156 @@
   .glow-red    { box-shadow: 0 0 12px rgba(220, 38, 38, 0.35); }
   .glow-crude  { box-shadow: 0 0 16px rgba(212, 160, 23, 0.40); }
 
-  /* Resource number pop animation — triggered by adding class via JS */
+  /* ── Number pop — for resource counter changes ── */
   .number-pop {
     animation: number-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
   @keyframes number-pop {
-    from { transform: scale(0.8); opacity: 0.5; }
-    to   { transform: scale(1);   opacity: 1; }
+    0% { transform: scale(1); }
+    40% { transform: scale(1.15); }
+    100% { transform: scale(1); }
   }
 
-  /* Hide scrollbar but keep scroll */
-  .scrollbar-none {
-    scrollbar-width: none;
+  /* ── Floating reward text ── */
+  .float-reward {
+    animation: float-reward 1.2s ease-out forwards;
+    pointer-events: none;
   }
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
+  @keyframes float-reward {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    50% { opacity: 0.9; transform: translateY(-20px) scale(1.1); }
+    100% { opacity: 0; transform: translateY(-40px) scale(0.9); }
   }
+
+  /* ── Tile unlock burst ── */
+  .unlock-burst {
+    animation: unlock-burst 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes unlock-burst {
+    0% { transform: scale(0.6); opacity: 0; }
+    60% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── Building place bounce ── */
+  .build-bounce {
+    animation: build-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes build-bounce {
+    0% { transform: scale(0.3) translateY(8px); opacity: 0; }
+    60% { transform: scale(1.15) translateY(-2px); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  /* ── Milestone celebration ── */
+  .milestone-flash {
+    animation: milestone-flash 0.8s ease-out both;
+  }
+  @keyframes milestone-flash {
+    0% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0.6); }
+    50% { box-shadow: 0 0 30px 10px rgba(212, 160, 23, 0.3); }
+    100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0); }
+  }
+
+  /* ── Prestige ripple ── */
+  .prestige-ripple {
+    animation: prestige-ripple 1.5s ease-out both;
+  }
+  @keyframes prestige-ripple {
+    0% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0.5); transform: scale(1); }
+    50% { box-shadow: 0 0 40px 20px rgba(212, 160, 23, 0.0); transform: scale(1.02); }
+    100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0.0); transform: scale(1); }
+  }
+
+  /* ── Production pulse — subtle breathing for active buildings ── */
+  .production-pulse {
+    animation: production-pulse 2s ease-in-out infinite;
+  }
+  @keyframes production-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Oil flow — for refinery/pipeline bars ── */
+  .oil-flow {
+    animation: oil-flow 1.5s linear infinite;
+    background-size: 200% 100%;
+  }
+  @keyframes oil-flow {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── Market ticker ── */
+  .market-tick-up {
+    animation: market-tick-up 0.3s ease-out;
+  }
+  @keyframes market-tick-up {
+    0% { color: inherit; }
+    50% { color: rgb(74, 222, 128); }
+    100% { color: inherit; }
+  }
+  .market-tick-down {
+    animation: market-tick-down 0.3s ease-out;
+  }
+  @keyframes market-tick-down {
+    0% { color: inherit; }
+    50% { color: rgb(248, 113, 113); }
+    100% { color: inherit; }
+  }
+
+  /* ── Toast slide-in ── */
+  .toast-enter {
+    animation: toast-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes toast-enter {
+    0% { transform: translateX(100%) scale(0.9); opacity: 0; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+  }
+  .toast-exit {
+    animation: toast-exit 0.2s ease-in forwards;
+  }
+  @keyframes toast-exit {
+    0% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+  }
+
+  /* ── Sell flash — screen flash when selling ── */
+  .sell-flash {
+    animation: sell-flash 0.3s ease-out both;
+  }
+  @keyframes sell-flash {
+    0% { background-color: rgba(212, 160, 23, 0.15); }
+    100% { background-color: transparent; }
+  }
+
+  /* ── Upgrade shine — sweeps across upgrade buttons ── */
+  .upgrade-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .upgrade-shine::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    animation: upgrade-shine 3s ease-in-out infinite;
+  }
+  @keyframes upgrade-shine {
+    0%, 100% { left: -100%; }
+    50% { left: 150%; }
+  }
+
+  /* ── Storage warning pulse ── */
+  .storage-warning {
+    animation: storage-warning 1s ease-in-out infinite;
+  }
+  @keyframes storage-warning {
+    0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+    50% { border-color: rgba(239, 68, 68, 0.7); }
+  }
+
+  /* ── Scrollbar none ── */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
 }

@@ -116,7 +116,14 @@ export async function POST(request: Request) {
 
     const { data: prevState } = await supabase
       .from('game_states')
-      .select('version, crude_oil, last_tick_at, server_lifetime_barrels')
+      .select('version, crude_oil, refined_oil, petrodollars, last_tick_at, server_lifetime_barrels, plots_data, upgrades_data, unlocked_tile_count')
+      .eq('wallet_address', walletAddress)
+      .single()
+
+    // ── Load previous player state for prestige validation ──────────────
+    const { data: prevPlayer } = await supabase
+      .from('players')
+      .select('prestige_level, lifetime_barrels, lifetime_petrodollars, black_gold')
       .eq('wallet_address', walletAddress)
       .single()
 
@@ -151,22 +158,63 @@ export async function POST(request: Request) {
       }
 
       // ── Server-tracked barrel accumulation ──────────────────────────────
-      // Accumulate barrels based on what the server knows is possible,
-      // not what the client claims. This is the counter used for milestone rewards.
       const maxNewBarrels = serverProductionRate * cappedElapsedSec * VALIDATION_TOLERANCE
       serverLifetimeBarrels += Math.floor(maxNewBarrels)
 
       // ── Validate client lifetime_barrels against server tracking ────────
-      // Client value should never exceed server-tracked by more than one
-      // save interval's worth of production.
       const clientLifetimeBarrels = Math.max(0, gameState.lifetime_barrels ?? 0)
       if (clientLifetimeBarrels > serverLifetimeBarrels * 1.1 + 1000) {
         console.warn(
           `[anti-cheat] lifetime_barrels suspicious for ${walletAddress}:`,
           `client=${clientLifetimeBarrels} server=${serverLifetimeBarrels}`
         )
-        // Don't reject — just clamp to server value. The game still saves,
-        // but milestones use server_lifetime_barrels, not the client value.
+      }
+
+      // ── Validate petrodollar delta ─────────────────────────────────────
+      // Petrodollars can increase from selling crude/refined + daily rewards +
+      // mission rewards + milestone rewards. Estimate a generous upper bound.
+      const maxSellIncome = (
+        (prevState.crude_oil + maxNewBarrels) * 4 * // refined sells at 4x
+        1.3 * // max market multiplier headroom
+        1.3 * // max streak bonus headroom
+        2.0   // max milestone cash bonus headroom
+      )
+      const maxPetrodollars = (prevState.petrodollars ?? 0) + maxSellIncome + 100_000 // daily/mission buffer
+      const clientPetrodollars = Math.max(0, gameState.petrodollars ?? 0)
+
+      if (clientPetrodollars > maxPetrodollars) {
+        console.warn(
+          `[anti-cheat] petrodollars suspicious for ${walletAddress}:`,
+          `client=${clientPetrodollars.toFixed(0)} max=${maxPetrodollars.toFixed(0)}`
+        )
+        // Clamp instead of reject — prevents locking out legitimate edge cases
+        gameState.petrodollars = Math.min(clientPetrodollars, maxPetrodollars)
+      }
+
+      // ── Validate prestige level ────────────────────────────────────────
+      // Prestige can only increase by 1 per save. Can't jump from P0 to P10.
+      const prevPrestige = prevPlayer?.prestige_level ?? 0
+      if (prestigeLevel > prevPrestige + 1) {
+        console.warn(
+          `[anti-cheat] prestige jump for ${walletAddress}: ${prevPrestige} → ${prestigeLevel}`
+        )
+        return NextResponse.json({ error: 'Invalid prestige progression' }, { status: 400 })
+      }
+
+      // ── Validate lifetime stats never decrease (except prestige resets resources) ──
+      if ((gameState.lifetime_petrodollars ?? 0) < (prevPlayer?.lifetime_petrodollars ?? 0) - 1) {
+        console.warn(`[anti-cheat] lifetime_petrodollars decreased for ${walletAddress}`)
+        gameState.lifetime_petrodollars = prevPlayer?.lifetime_petrodollars ?? 0
+      }
+
+      // ── Validate tile unlock count vs actual unlocked tiles ─────────────
+      const actualUnlocked = plots.filter((p: GridCell) => p.status === 'unlocked').length
+      if (Math.abs(actualUnlocked - (gameState.unlocked_tile_count ?? 1)) > 1) {
+        console.warn(
+          `[anti-cheat] tile count mismatch for ${walletAddress}: ` +
+          `claimed=${gameState.unlocked_tile_count} actual=${actualUnlocked}`
+        )
+        gameState.unlocked_tile_count = actualUnlocked
       }
     }
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { GridCell as GridCellType, BuildingType } from '@/engine/types'
 import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -53,6 +54,15 @@ const BUILDING_BAR: Record<BuildingType, string> = {
   refinery:     'bg-red-500',
 }
 
+const BUILDING_GLOW: Record<BuildingType, string> = {
+  oil_well:     'shadow-[0_0_8px_rgba(217,119,6,0.25)]',
+  pump_jack:    'shadow-[0_0_8px_rgba(3,105,161,0.25)]',
+  derrick:      'shadow-[0_0_10px_rgba(124,58,237,0.25)]',
+  oil_terminal: 'shadow-[0_0_14px_rgba(234,179,8,0.3)]',
+  storage_tank: 'shadow-[0_0_8px_rgba(4,120,87,0.2)]',
+  refinery:     'shadow-[0_0_10px_rgba(220,38,38,0.25)]',
+}
+
 function getBuildingMetric(type: BuildingType, level: number): string {
   if (type === 'oil_terminal') return '↑20% aura'
   const storage = getBuildingStorageBonus(type, level)
@@ -71,6 +81,8 @@ export function GridCell({ cell }: GridCellProps) {
   const selectedCell = useUiStore((s) => s.selectedCell)
   const addToast = useUiStore((s) => s.addToast)
   const trackEvent = useMissionStore((s) => s.trackEvent)
+
+  const [justBuilt, setJustBuilt] = useState(false)
 
   const isSelected = selectedCell?.x === cell.x && selectedCell?.y === cell.y
   const canAffordUnlock = petrodollars >= cell.unlockCost
@@ -103,8 +115,8 @@ export function GridCell({ cell }: GridCellProps) {
   // ── LOCKED ────────────────────────────────────────────────────────────────
   if (cell.status === 'locked') {
     return (
-      <div className="relative aspect-square rounded-md bg-oil-950/80 border border-oil-900/30 flex items-center justify-center opacity-20 select-none">
-        <span className="text-xs text-oil-800">🔒</span>
+      <div className="relative aspect-square rounded-md bg-oil-950/60 border border-oil-900/15 flex items-center justify-center select-none">
+        <div className="w-1.5 h-1.5 rounded-full bg-oil-800/30" />
       </div>
     )
   }
@@ -143,7 +155,7 @@ export function GridCell({ cell }: GridCellProps) {
         'flex flex-col items-center justify-center',
         'hover:scale-[1.04] active:scale-[0.97]',
         def
-          ? [BUILDING_BG[cell.building!], BUILDING_BORDER[cell.building!], 'hover:brightness-110']
+          ? [BUILDING_BG[cell.building!], BUILDING_BORDER[cell.building!], BUILDING_GLOW[cell.building!], 'hover:brightness-110']
           : 'bg-oil-900/30 border-oil-800/30 border-dashed hover:border-crude-500/25 hover:bg-oil-800/30',
         isSelected && 'ring-2 ring-crude-400 ring-offset-1 ring-offset-oil-950 scale-[1.04]',
         isTerminal && 'shadow-[0_0_16px_rgba(234,179,8,0.3)]'
@@ -161,7 +173,7 @@ export function GridCell({ cell }: GridCellProps) {
             className={cn(
               'text-[1.3rem] leading-none select-none',
               cell.building === 'oil_well' && 'animate-pump',
-              isRefinery && 'animate-pulse',
+              isRefinery && 'production-pulse',
               isTerminal && 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]'
             )}
           >

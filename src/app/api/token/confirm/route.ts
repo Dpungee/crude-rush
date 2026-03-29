@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
 import { requireAuth } from '@/lib/auth-middleware'
-import { getConnection } from '@/lib/solana'
+import { getConnection, CRUDE_TOKEN_MINT } from '@/lib/solana'
 
 export async function POST(request: Request) {
   const auth = requireAuth(request)
@@ -79,16 +79,26 @@ export async function POST(request: Request) {
       )
     }
 
-    // ── On-chain verification ─────────────────────────────────────────────
+    // ── On-chain verification — FULL transaction inspection ──────────────
+    // We don't just check if the tx exists — we verify it actually transferred
+    // the correct amount of $CRUDE to the player's wallet from our treasury.
     const connection = getConnection()
-    const result = await connection.getSignatureStatus(txSignature, {
-      searchTransactionHistory: true,
-    })
 
-    const confirmStatus = result?.value?.confirmationStatus
-    const txErr = result?.value?.err
+    let parsedTx
+    try {
+      parsedTx = await connection.getParsedTransaction(txSignature, {
+        maxSupportedTransactionVersion: 0,
+        commitment: 'confirmed',
+      })
+    } catch (rpcErr) {
+      console.error('[confirm] RPC error fetching tx:', rpcErr)
+      return NextResponse.json(
+        { error: 'Unable to verify transaction on-chain. Try again.' },
+        { status: 503 }
+      )
+    }
 
-    if (!confirmStatus || txErr) {
+    if (!parsedTx || parsedTx.meta?.err) {
       await supabase
         .from('on_chain_claims')
         .update({ status: 'failed' })
@@ -99,11 +109,72 @@ export async function POST(request: Request) {
         wallet_address: walletAddress,
         action: 'claim_failed',
         reference_id: claimId,
-        metadata: { reason: txErr ? 'tx_error' : 'not_confirmed', txSignature, txErr },
+        metadata: { reason: parsedTx?.meta?.err ? 'tx_error' : 'not_found', txSignature, err: parsedTx?.meta?.err },
       })
 
       return NextResponse.json(
         { error: 'Transaction not confirmed or failed on-chain. Please try claiming again.' },
+        { status: 400 }
+      )
+    }
+
+    // ── Verify the actual transfer details ────────────────────────────
+    // Parse the SPL token transfer instruction to confirm:
+    // 1. It's a transfer of our $CRUDE token mint
+    // 2. The destination is the player's wallet (or their ATA)
+    // 3. The amount matches what we expect
+    const claimAmountBigInt = BigInt(existingClaim.amount ?? 0)
+    let transferVerified = false
+
+    if (CRUDE_TOKEN_MINT && parsedTx.meta?.postTokenBalances && parsedTx.meta?.preTokenBalances) {
+      const mintAddress = CRUDE_TOKEN_MINT.toBase58()
+      const pre = parsedTx.meta.preTokenBalances
+      const post = parsedTx.meta.postTokenBalances
+
+      // Find the player's token account that received $CRUDE
+      for (const postBal of post) {
+        if (postBal.mint !== mintAddress) continue
+        if (postBal.owner !== walletAddress) continue
+
+        // Find matching pre-balance
+        const preBal = pre.find(
+          (p) => p.accountIndex === postBal.accountIndex && p.mint === mintAddress
+        )
+        const preAmount = BigInt(preBal?.uiTokenAmount?.amount ?? '0')
+        const postAmount = BigInt(postBal.uiTokenAmount?.amount ?? '0')
+        const delta = postAmount - preAmount
+
+        // Allow small rounding tolerance (±1 micro-token)
+        if (delta >= claimAmountBigInt - 1n && delta <= claimAmountBigInt + 1n) {
+          transferVerified = true
+          break
+        }
+      }
+    }
+
+    if (!transferVerified && CRUDE_TOKEN_MINT) {
+      // The transaction exists and succeeded, but it didn't transfer
+      // the right amount of $CRUDE to this player. Suspicious.
+      await supabase
+        .from('on_chain_claims')
+        .update({ status: 'failed' })
+        .eq('id', claimId)
+        .eq('wallet_address', walletAddress)
+
+      await supabase.from('token_audit_log').insert({
+        wallet_address: walletAddress,
+        action: 'claim_failed',
+        reference_id: claimId,
+        metadata: {
+          reason: 'transfer_mismatch',
+          txSignature,
+          expectedAmount: existingClaim.amount,
+          expectedRecipient: walletAddress,
+        },
+      })
+
+      return NextResponse.json(
+        { error: 'Transaction does not contain the expected token transfer.' },
         { status: 400 }
       )
     }

@@ -1,31 +1,36 @@
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 
 // ── JWT Secret ─────────────────────────────────────────────────────────────────
-// Resolved lazily (inside signJWT / verifyJWT) so `next build` doesn't throw
-// when collecting page data with no env vars present. Enforcement happens at
-// actual request time.
+// SECURITY: Never falls back to a hardcoded secret. If JWT_SECRET is not set,
+// we generate a per-process ephemeral secret. This means JWTs won't survive
+// server restarts in dev, but it's infinitely better than a known default that
+// an attacker could use to forge tokens.
+let _ephemeralSecret: string | null = null
+
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      // Hard fail in production — never silently use an insecure default.
-      throw new Error('JWT_SECRET environment variable must be set in production.')
+  if (secret) {
+    if (secret.length < 32 && process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be at least 32 characters in production.')
     }
-    // Warn once per process in dev
-    const g = global as Record<string, unknown>
-    if (!g.__jwtWarnedOnce) {
-      console.warn(
-        '[auth] ⚠️  JWT_SECRET not set — using insecure dev default. ' +
-          'Set JWT_SECRET in .env.local before deploying.'
-      )
-      g.__jwtWarnedOnce = true
-    }
-    return 'crude-rush-dev-secret-change-in-prod'
+    return secret
   }
-  if (secret.length < 32) {
-    console.warn('[auth] ⚠️  JWT_SECRET is short (< 32 chars). Use a long random value.')
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable must be set in production.')
   }
-  return secret
+
+  // Dev mode: generate a random ephemeral secret per process.
+  // JWTs won't survive restarts, but there's no hardcoded secret to exploit.
+  if (!_ephemeralSecret) {
+    _ephemeralSecret = crypto.randomBytes(48).toString('hex')
+    console.warn(
+      '[auth] ⚠️  JWT_SECRET not set — using ephemeral per-process secret. ' +
+        'JWTs will not survive server restarts. Set JWT_SECRET in .env.local.'
+    )
+  }
+  return _ephemeralSecret
 }
 
 const JWT_EXPIRES_IN = '24h'
