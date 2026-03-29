@@ -1,15 +1,13 @@
 'use client'
 
 /**
- * BuildingRenderer — renders visual building components instead of emoji.
+ * BuildingRenderer — CSS-drawn industrial buildings with living animations.
  *
- * Each building is a pure CSS/div composition:
- * - No images, no SVG, no heavy libraries
- * - Uses gradients, shadows, borders, and transforms
- * - Animates based on state (producing, upgrading, idle)
- * - Scales subtly with level
- *
- * Design language: dark industrial. Steel, rust, amber, heat.
+ * Each building has:
+ * - Level-scaled sizing (L1=1.0x → L10=1.2x)
+ * - Production-reactive animation speed (higher level = faster pumping)
+ * - State-aware visuals (producing, upgrading, idle)
+ * - Environmental details (smoke, heat, lights, oil puddles, gauges)
  */
 
 import type { BuildingType } from '@/engine/types'
@@ -19,56 +17,44 @@ interface BuildingProps {
   type: BuildingType
   level: number
   isUpgrading: boolean
-  /** 0–1 scale factor for cell size awareness */
-  size?: 'sm' | 'md'
 }
 
-// Level-based scale: L1 = 1.0, L5 = 1.1, L10 = 1.2
 function levelScale(level: number): string {
   const s = 1 + (level - 1) * 0.022
   return `scale(${s.toFixed(3)})`
 }
 
-// Level-based glow intensity
-function levelGlow(level: number, baseColor: string, baseAlpha: number): string {
-  const alpha = Math.min(baseAlpha + level * 0.03, 0.8)
-  return `0 0 ${4 + level * 1.5}px ${baseColor.replace(')', `,${alpha})`)}`
+function levelGlow(level: number, r: number, g: number, b: number, baseAlpha: number): string {
+  const a = Math.min(baseAlpha + level * 0.03, 0.7)
+  return `0 0 ${4 + level * 1.5}px rgba(${r},${g},${b},${a})`
+}
+
+// Higher level = faster pump (2s at L1, 0.8s at L10)
+function pumpDur(level: number): string {
+  return `${Math.max(0.8, 2 - level * 0.12).toFixed(2)}s`
 }
 
 // ── Oil Well ──────────────────────────────────────────────────────────────────
 function OilWell({ level, isUpgrading }: { level: number; isUpgrading: boolean }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center" style={{ transform: levelScale(level) }}>
-      {/* Derrick frame */}
-      <div className={cn(
-        'relative w-[55%] h-[70%] flex flex-col items-center justify-end',
-        isUpgrading && 'opacity-50'
-      )}>
-        {/* Pump head — the rocking beam */}
-        <div className={cn(
-          'absolute -top-[2px] w-[80%] h-[3px] rounded-full origin-left',
-          'bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800',
-          !isUpgrading && 'animate-pump'
-        )} />
-
-        {/* Vertical support */}
-        <div className="w-[3px] h-full bg-gradient-to-b from-amber-700 to-amber-900 rounded-sm" />
-
-        {/* Base platform */}
-        <div className="absolute bottom-0 w-full h-[3px] bg-gradient-to-r from-stone-700 via-stone-600 to-stone-700 rounded-sm" />
-
-        {/* Oil drop indicator */}
-        {!isUpgrading && level >= 3 && (
-          <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-amber-500/60 animate-pulse" />
+      <div className={cn('relative w-[60%] h-[75%] flex flex-col items-center justify-end', isUpgrading && 'opacity-40')}>
+        <div className="absolute -top-[2px] w-[85%] h-[3px] rounded-full origin-left bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700"
+          style={!isUpgrading ? { animation: `pump ${pumpDur(level)} ease-in-out infinite` } : undefined} />
+        <div className="w-[3px] h-full bg-gradient-to-b from-amber-600 to-amber-900 rounded-sm" />
+        <div className="absolute bottom-0 w-full h-[4px] bg-gradient-to-r from-stone-700 via-stone-500 to-stone-700 rounded-sm" />
+        {!isUpgrading && level >= 2 && (
+          <div className="absolute -bottom-[3px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-amber-800/50 animate-pulse" />
+        )}
+        {!isUpgrading && level >= 5 && (
+          <div className="absolute -bottom-[2px] w-[70%] h-[2px] rounded-full bg-amber-900/20" />
         )}
       </div>
-
-      {/* Active glow */}
       {!isUpgrading && (
-        <div
-          className="absolute inset-0 rounded-sm pointer-events-none"
-          style={{ boxShadow: levelGlow(level, 'rgba(217,119,6', 0.15) }}
-        />
+        <>
+          <div className="absolute inset-0 rounded-sm pointer-events-none" style={{ boxShadow: levelGlow(level, 217, 119, 6, 0.12) }} />
+          <div className="absolute top-[8%] right-[12%] w-[2px] h-[2px] rounded-full bg-green-500/60 animate-pulse" />
+        </>
       )}
     </div>
   )
@@ -78,36 +64,23 @@ function OilWell({ level, isUpgrading }: { level: number; isUpgrading: boolean }
 function PumpJack({ level, isUpgrading }: { level: number; isUpgrading: boolean }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center" style={{ transform: levelScale(level) }}>
-      <div className={cn(
-        'relative w-[65%] h-[65%] flex flex-col items-center',
-        isUpgrading && 'opacity-50'
-      )}>
-        {/* Horsehead beam */}
-        <div className={cn(
-          'w-[90%] h-[3px] rounded-full origin-center',
-          'bg-gradient-to-r from-sky-700 via-sky-500 to-sky-700',
-          !isUpgrading && 'animate-pump'
-        )} />
-
-        {/* Walking beam support (A-frame) */}
+      <div className={cn('relative w-[70%] h-[70%] flex flex-col items-center', isUpgrading && 'opacity-40')}>
+        <div className="w-[95%] h-[3px] rounded-full origin-center bg-gradient-to-r from-sky-600 via-sky-400 to-sky-600"
+          style={!isUpgrading ? { animation: `pump ${pumpDur(level)} ease-in-out infinite` } : undefined} />
         <div className="relative w-full flex-1 flex items-end justify-center">
-          {/* Left leg */}
-          <div className="absolute left-[20%] bottom-0 w-[2px] h-[90%] bg-sky-800 rotate-[8deg] origin-bottom" />
-          {/* Right leg */}
-          <div className="absolute right-[20%] bottom-0 w-[2px] h-[90%] bg-sky-800 -rotate-[8deg] origin-bottom" />
-          {/* Crossbar */}
-          <div className="absolute top-[30%] w-[50%] h-[2px] bg-sky-700/60" />
+          <div className="absolute left-[18%] bottom-0 w-[2px] h-[92%] bg-sky-700 rotate-[8deg] origin-bottom" />
+          <div className="absolute right-[18%] bottom-0 w-[2px] h-[92%] bg-sky-700 -rotate-[8deg] origin-bottom" />
+          <div className="absolute top-[28%] w-[55%] h-[2px] bg-sky-600/50" />
+          <div className="absolute left-[10%] top-[40%] w-[4px] h-[4px] rounded-sm bg-sky-800/60" />
         </div>
-
-        {/* Base */}
-        <div className="w-full h-[3px] bg-gradient-to-r from-sky-900 via-sky-700 to-sky-900 rounded-sm" />
+        <div className="w-full h-[4px] bg-gradient-to-r from-sky-900 via-sky-600 to-sky-900 rounded-sm" />
+        {level >= 3 && <div className="absolute bottom-[4px] right-[10%] w-[5px] h-[4px] rounded-[1px] bg-sky-800/50" />}
       </div>
-
       {!isUpgrading && (
-        <div
-          className="absolute inset-0 rounded-sm pointer-events-none"
-          style={{ boxShadow: levelGlow(level, 'rgba(3,105,161', 0.15) }}
-        />
+        <>
+          <div className="absolute inset-0 rounded-sm pointer-events-none" style={{ boxShadow: levelGlow(level, 3, 105, 161, 0.12) }} />
+          <div className="absolute top-[8%] left-[12%] w-[2px] h-[2px] rounded-full bg-sky-400/50 animate-pulse" />
+        </>
       )}
     </div>
   )
@@ -117,38 +90,29 @@ function PumpJack({ level, isUpgrading }: { level: number; isUpgrading: boolean 
 function Derrick({ level, isUpgrading }: { level: number; isUpgrading: boolean }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center" style={{ transform: levelScale(level) }}>
-      <div className={cn(
-        'relative w-[50%] h-[75%]',
-        isUpgrading && 'opacity-50'
-      )}>
-        {/* Tower — tapered trapezoid shape using borders */}
-        <div className="absolute inset-x-[15%] top-0 bottom-[10%] flex flex-col items-center">
-          {/* Left strut */}
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-violet-400 via-violet-600 to-violet-800 rotate-[4deg] origin-bottom" />
-          {/* Right strut */}
-          <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-violet-400 via-violet-600 to-violet-800 -rotate-[4deg] origin-bottom" />
-          {/* Cross braces */}
-          <div className="absolute top-[25%] w-full h-[1px] bg-violet-600/40" />
-          <div className="absolute top-[50%] w-full h-[1px] bg-violet-600/50" />
-          <div className="absolute top-[75%] w-full h-[1px] bg-violet-600/40" />
-          {/* Crown block (top) */}
-          <div className="absolute -top-[1px] left-[25%] right-[25%] h-[3px] bg-violet-400 rounded-t-sm" />
+      <div className={cn('relative w-[55%] h-[80%]', isUpgrading && 'opacity-40')}>
+        <div className="absolute inset-x-[12%] top-0 bottom-[8%]">
+          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-violet-300 via-violet-500 to-violet-800 rotate-[5deg] origin-bottom" />
+          <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-violet-300 via-violet-500 to-violet-800 -rotate-[5deg] origin-bottom" />
+          <div className="absolute top-[20%] w-full h-[1px] bg-violet-500/35" />
+          <div className="absolute top-[40%] w-full h-[1px] bg-violet-500/45" />
+          <div className="absolute top-[60%] w-full h-[1px] bg-violet-500/35" />
+          <div className="absolute top-[80%] w-full h-[1px] bg-violet-500/25" />
+          <div className="absolute -top-[2px] left-[20%] right-[20%] h-[3px] bg-violet-400 rounded-t-sm" />
         </div>
-
-        {/* Base platform */}
-        <div className="absolute bottom-0 inset-x-0 h-[3px] bg-gradient-to-r from-violet-900 via-violet-700 to-violet-900 rounded-sm" />
-
-        {/* Drill pipe (center line) */}
+        <div className="absolute bottom-0 inset-x-0 h-[4px] bg-gradient-to-r from-violet-900 via-violet-600 to-violet-900 rounded-sm" />
         {!isUpgrading && (
-          <div className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-[1px] h-[60%] bg-violet-300/40 animate-pulse" />
+          <>
+            <div className="absolute bottom-[4px] left-1/2 -translate-x-1/2 w-[1px] h-[55%] bg-violet-300/30 animate-pulse" />
+            {level >= 4 && <div className="absolute bottom-[4px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-violet-400/20 animate-pulse" />}
+          </>
         )}
       </div>
-
       {!isUpgrading && (
-        <div
-          className="absolute inset-0 rounded-sm pointer-events-none"
-          style={{ boxShadow: levelGlow(level, 'rgba(124,58,237', 0.15) }}
-        />
+        <>
+          <div className="absolute inset-0 rounded-sm pointer-events-none" style={{ boxShadow: levelGlow(level, 124, 58, 237, 0.12) }} />
+          <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[2px] h-[2px] rounded-full bg-red-500/50" style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
+        </>
       )}
     </div>
   )
@@ -156,35 +120,23 @@ function Derrick({ level, isUpgrading }: { level: number; isUpgrading: boolean }
 
 // ── Storage Tank ──────────────────────────────────────────────────────────────
 function StorageTank({ level, isUpgrading }: { level: number; isUpgrading: boolean }) {
+  const fillPct = Math.min(85, 20 + level * 7)
   return (
     <div className="relative w-full h-full flex items-center justify-center" style={{ transform: levelScale(level) }}>
-      <div className={cn(
-        'relative w-[60%] h-[55%]',
-        isUpgrading && 'opacity-50'
-      )}>
-        {/* Tank body — cylindrical look with gradient */}
-        <div className="w-full h-full rounded-[3px] bg-gradient-to-b from-emerald-700 via-emerald-800 to-emerald-950 border border-emerald-600/30 overflow-hidden">
-          {/* Highlight strip (cylindrical reflection) */}
-          <div className="absolute left-[15%] top-[10%] bottom-[10%] w-[2px] bg-emerald-400/20 rounded-full" />
-          {/* Fill level indicator */}
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-500/30 to-transparent"
-            style={{ height: `${Math.min(90, 30 + level * 6)}%` }}
-          />
+      <div className={cn('relative w-[65%] h-[60%]', isUpgrading && 'opacity-40')}>
+        <div className="w-full h-full rounded-[3px] bg-gradient-to-b from-emerald-600 via-emerald-800 to-emerald-950 border border-emerald-500/25 overflow-hidden">
+          <div className="absolute left-[12%] top-[8%] bottom-[8%] w-[2px] bg-emerald-300/15 rounded-full" />
+          <div className="absolute bottom-0 left-0 right-0 transition-all duration-1000"
+            style={{ height: `${fillPct}%`, background: 'linear-gradient(to top, rgba(16,185,129,0.35), rgba(16,185,129,0.15), transparent)' }} />
+          <div className="absolute left-0 right-0 h-[1px] bg-emerald-400/20" style={{ bottom: `${fillPct}%` }} />
         </div>
-
-        {/* Tank top dome */}
-        <div className="absolute -top-[2px] inset-x-[10%] h-[4px] bg-gradient-to-r from-emerald-800 via-emerald-600 to-emerald-800 rounded-t-full" />
-
-        {/* Pipe stub */}
-        <div className="absolute top-[30%] -right-[3px] w-[4px] h-[2px] bg-emerald-700 rounded-r-sm" />
+        <div className="absolute -top-[2px] inset-x-[8%] h-[4px] bg-gradient-to-r from-emerald-800 via-emerald-500 to-emerald-800 rounded-t-full" />
+        <div className="absolute top-[25%] -right-[4px] w-[5px] h-[2px] bg-emerald-600 rounded-r-sm" />
+        <div className="absolute top-[55%] -left-[4px] w-[5px] h-[2px] bg-emerald-700 rounded-l-sm" />
+        {level >= 5 && <div className="absolute top-[15%] right-[15%] w-[3px] h-[3px] rounded-full border border-emerald-400/30 bg-emerald-900/50" />}
       </div>
-
       {!isUpgrading && (
-        <div
-          className="absolute inset-0 rounded-sm pointer-events-none"
-          style={{ boxShadow: levelGlow(level, 'rgba(4,120,87', 0.1) }}
-        />
+        <div className="absolute inset-0 rounded-sm pointer-events-none" style={{ boxShadow: levelGlow(level, 16, 185, 129, 0.08) }} />
       )}
     </div>
   )
@@ -194,38 +146,35 @@ function StorageTank({ level, isUpgrading }: { level: number; isUpgrading: boole
 function Refinery({ level, isUpgrading }: { level: number; isUpgrading: boolean }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center" style={{ transform: levelScale(level) }}>
-      <div className={cn(
-        'relative w-[65%] h-[70%] flex items-end gap-[2px]',
-        isUpgrading && 'opacity-50'
-      )}>
-        {/* Main column */}
-        <div className="w-[35%] h-full bg-gradient-to-b from-red-600 via-red-800 to-red-950 rounded-t-[2px] border-x border-t border-red-500/20" />
-        {/* Secondary column */}
-        <div className="w-[25%] h-[75%] bg-gradient-to-b from-red-700 via-red-900 to-red-950 rounded-t-[2px] border-x border-t border-red-600/15" />
-        {/* Pipe connector */}
-        <div className="w-[20%] h-[50%] bg-gradient-to-b from-red-800 to-red-950 rounded-t-[1px]" />
-
-        {/* Smoke particles */}
+      <div className={cn('relative w-[70%] h-[75%] flex items-end gap-[2px]', isUpgrading && 'opacity-40')}>
+        <div className="w-[35%] h-full bg-gradient-to-b from-red-500 via-red-700 to-red-950 rounded-t-[2px] border-x border-t border-red-400/20">
+          <div className="absolute top-[20%] w-full h-[1px] bg-red-400/15" />
+          <div className="absolute top-[40%] w-full h-[1px] bg-red-400/10" />
+          <div className="absolute top-[60%] w-full h-[1px] bg-red-400/15" />
+        </div>
+        <div className="w-[25%] h-[78%] bg-gradient-to-b from-red-600 via-red-800 to-red-950 rounded-t-[2px] border-x border-t border-red-500/15" />
+        <div className="w-[22%] h-[55%] bg-gradient-to-b from-red-700 to-red-950 rounded-t-[1px]" />
         {!isUpgrading && (
           <>
-            <div className="absolute -top-[4px] left-[15%] w-[3px] h-[3px] rounded-full bg-stone-500/40 animate-smoke" />
+            <div className="absolute -top-[5px] left-[12%] w-[3px] h-[4px] rounded-full bg-stone-500/35 animate-smoke" />
+            <div className="absolute -top-[4px] left-[30%] w-[2px] h-[3px] rounded-full bg-stone-500/25 animate-smoke" style={{ animationDelay: '0.8s' }} />
+            {level >= 3 && <div className="absolute -top-[3px] left-[48%] w-[2px] h-[2px] rounded-full bg-stone-400/20 animate-smoke" style={{ animationDelay: '1.4s' }} />}
+            {level >= 6 && <div className="absolute -top-[4px] left-[22%] w-[2px] h-[3px] rounded-full bg-stone-400/15 animate-smoke" style={{ animationDelay: '0.4s' }} />}
+            <div className="absolute bottom-0 left-0 right-0 h-[6px]" style={{ background: 'linear-gradient(to top, rgba(220,38,38,0.25), rgba(234,88,12,0.1), transparent)' }} />
             {level >= 4 && (
-              <div className="absolute -top-[3px] left-[35%] w-[2px] h-[2px] rounded-full bg-stone-500/30 animate-smoke" style={{ animationDelay: '0.7s' }} />
+              <div className="absolute -top-[4px] right-[5%] flex flex-col items-center">
+                <div className="w-[2px] h-[3px] bg-red-600/40" />
+                <div className="w-[3px] h-[2px] rounded-full bg-orange-500/30 animate-pulse" />
+              </div>
             )}
           </>
         )}
-
-        {/* Heat glow at base */}
-        {!isUpgrading && (
-          <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-t from-red-500/20 to-transparent" />
-        )}
       </div>
-
       {!isUpgrading && (
-        <div
-          className="absolute inset-0 rounded-sm pointer-events-none"
-          style={{ boxShadow: levelGlow(level, 'rgba(220,38,38', 0.15) }}
-        />
+        <>
+          <div className="absolute inset-0 rounded-sm pointer-events-none" style={{ boxShadow: levelGlow(level, 220, 38, 38, 0.15) }} />
+          <div className="absolute bottom-[12%] right-[10%] w-[2px] h-[2px] rounded-full bg-red-400/50 animate-pulse" />
+        </>
       )}
     </div>
   )
@@ -235,35 +184,32 @@ function Refinery({ level, isUpgrading }: { level: number; isUpgrading: boolean 
 function OilTerminal({ level, isUpgrading }: { level: number; isUpgrading: boolean }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center" style={{ transform: levelScale(level) }}>
-      <div className={cn(
-        'relative w-[65%] h-[55%]',
-        isUpgrading && 'opacity-50'
-      )}>
-        {/* Main building */}
-        <div className="w-full h-full rounded-[2px] bg-gradient-to-b from-yellow-600/80 via-yellow-800 to-yellow-950 border border-yellow-500/30">
-          {/* Window row */}
-          <div className="absolute top-[20%] inset-x-[15%] flex gap-[2px]">
-            <div className="flex-1 h-[3px] bg-yellow-400/30 rounded-[1px]" />
-            <div className="flex-1 h-[3px] bg-yellow-400/40 rounded-[1px]" />
-            <div className="flex-1 h-[3px] bg-yellow-400/30 rounded-[1px]" />
+      <div className={cn('relative w-[70%] h-[60%]', isUpgrading && 'opacity-40')}>
+        <div className="w-full h-full rounded-[2px] bg-gradient-to-b from-yellow-500/70 via-yellow-700 to-yellow-950 border border-yellow-400/25">
+          <div className="absolute top-[18%] inset-x-[12%] flex gap-[2px]">
+            <div className="flex-1 h-[3px] bg-yellow-300/25 rounded-[1px]" />
+            <div className="flex-1 h-[3px] bg-yellow-300/35 rounded-[1px] animate-pulse" />
+            <div className="flex-1 h-[3px] bg-yellow-300/25 rounded-[1px]" />
           </div>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[20%] h-[25%] bg-yellow-900/40 rounded-t-[1px]" />
         </div>
-
-        {/* Roof/antenna */}
-        <div className="absolute -top-[3px] left-1/2 -translate-x-1/2 w-[2px] h-[5px] bg-yellow-500/60" />
-
-        {/* Aura ring */}
+        <div className="absolute -top-[4px] left-1/2 -translate-x-1/2 w-[2px] h-[6px] bg-yellow-500/50" />
+        <div className="absolute -top-[5px] left-1/2 -translate-x-1/2 w-[3px] h-[1px] bg-yellow-400/40" />
+        <div className="absolute bottom-0 -left-[3px] w-[4px] h-[2px] bg-yellow-800/30 rounded-l-sm" />
+        <div className="absolute bottom-0 -right-[3px] w-[4px] h-[2px] bg-yellow-800/30 rounded-r-sm" />
         {!isUpgrading && (
-          <div className="absolute -inset-[3px] rounded-[4px] border border-yellow-400/15 animate-pulse pointer-events-none" />
+          <>
+            <div className="absolute -inset-[3px] rounded-[4px] border border-yellow-400/12 animate-pulse pointer-events-none" />
+            {level >= 4 && <div className="absolute -inset-[6px] rounded-[6px] border border-yellow-400/6 animate-pulse pointer-events-none" style={{ animationDelay: '0.5s' }} />}
+          </>
         )}
       </div>
-
-      {/* Terminal always glows — it's the aura building */}
       {!isUpgrading && (
-        <div
-          className="absolute inset-0 rounded-sm pointer-events-none animate-pulse-glow"
-          style={{ boxShadow: `0 0 ${6 + level * 2}px rgba(234,179,8,${0.2 + level * 0.03})` }}
-        />
+        <>
+          <div className="absolute inset-0 rounded-sm pointer-events-none animate-pulse-glow" style={{ boxShadow: `0 0 ${6 + level * 2}px rgba(234,179,8,${0.18 + level * 0.025})` }} />
+          <div className="absolute top-[6%] right-[8%] w-[2px] h-[2px] rounded-full bg-green-400/50 animate-pulse" />
+          <div className="absolute top-[6%] right-[15%] w-[2px] h-[2px] rounded-full bg-yellow-400/40 animate-pulse" style={{ animationDelay: '0.3s' }} />
+        </>
       )}
     </div>
   )
@@ -283,34 +229,28 @@ const BUILDING_COMPONENTS: Record<BuildingType, React.FC<{ level: number; isUpgr
 export function BuildingRenderer({ type, level, isUpgrading }: BuildingProps) {
   const Component = BUILDING_COMPONENTS[type]
   if (!Component) return null
-
   return (
     <div className={cn('w-full h-full', isUpgrading && 'relative')}>
       <Component level={level} isUpgrading={isUpgrading} />
-      {/* Upgrade overlay */}
       {isUpgrading && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-amber-900/10 rounded-sm" />
-          {/* Scaffolding lines */}
-          <div className="absolute top-[10%] left-[10%] right-[10%] h-[1px] bg-amber-500/20" />
-          <div className="absolute bottom-[10%] left-[10%] right-[10%] h-[1px] bg-amber-500/20" />
-          <div className="absolute top-[10%] left-[10%] w-[1px] h-[80%] bg-amber-500/20" />
-          <div className="absolute top-[10%] right-[10%] w-[1px] h-[80%] bg-amber-500/20" />
-          {/* Hammer icon */}
-          <span className="text-[7px] text-amber-400/60 font-bold">⚒️</span>
+          <div className="absolute inset-0 bg-amber-900/15 rounded-sm" />
+          <div className="absolute top-[8%] left-[8%] right-[8%] h-[1px] bg-amber-500/25" />
+          <div className="absolute bottom-[8%] left-[8%] right-[8%] h-[1px] bg-amber-500/25" />
+          <div className="absolute top-[8%] left-[8%] w-[1px] h-[84%] bg-amber-500/25" />
+          <div className="absolute top-[8%] right-[8%] w-[1px] h-[84%] bg-amber-500/25" />
+          <span className="text-[7px] text-amber-400/50 font-bold z-10">⚒️</span>
         </div>
       )}
     </div>
   )
 }
 
-/** Render a building under construction (ghost preview) */
 export function ConstructionPreview({ type }: { type: BuildingType }) {
   const Component = BUILDING_COMPONENTS[type]
   if (!Component) return null
-
   return (
-    <div className="w-full h-full opacity-30 production-pulse">
+    <div className="w-full h-full opacity-25 production-pulse">
       <Component level={1} isUpgrading={false} />
     </div>
   )
