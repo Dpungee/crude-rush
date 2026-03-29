@@ -91,6 +91,7 @@ export function BuildMenu() {
   const petrodollars = useGameStore((s) => s.petrodollars)
   const buildOnCell = useGameStore((s) => s.buildOnCell)
   const upgradeBuilding = useGameStore((s) => s.upgradeBuilding)
+  const instantFinish = useGameStore((s) => s.instantFinish)
   const trackEvent = useMissionStore((s) => s.trackEvent)
   const addToast = useUiStore((s) => s.addToast)
 
@@ -98,8 +99,6 @@ export function BuildMenu() {
 
   const plot = plots.find((p) => p.x === selectedCell.x && p.y === selectedCell.y)
   if (!plot || plot.status !== 'unlocked') return null
-
-  const instantFinish = useGameStore((s) => s.instantFinish)
 
   const handleBuild = (type: BuildingType) => {
     const success = buildOnCell(selectedCell.x, selectedCell.y, type)
