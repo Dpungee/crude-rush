@@ -325,15 +325,33 @@ export function GameShell() {
 
       {/* Main game area — world fills the space, HUD floats on top */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* World area — fills available space */}
-        <div className="flex-1 flex items-center justify-center relative"
-          style={{ backgroundColor: '#0e0c0a' }}
+        {/* World area — terrain fills the ENTIRE space, no visible grid boundary */}
+        <div className="flex-1 flex items-center justify-center relative overflow-hidden"
+          style={{ backgroundColor: '#0c0a08' }}
         >
-          {/* Ambient glow */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[600px] h-[600px] rounded-full blur-[100px]"
-              style={{ background: 'radial-gradient(circle, rgba(50,40,25,0.15) 0%, transparent 70%)' }} />
-          </div>
+          {/* TERRAIN LAYER — covers full world area, not just the grid */}
+          {/* Warm ground light — large circular glow centered on play area */}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `
+                radial-gradient(circle at 45% 50%, rgba(55,42,25,0.5) 0%, rgba(35,28,18,0.3) 15%, rgba(20,16,10,0.12) 30%, transparent 50%),
+                radial-gradient(ellipse 60% 50% at 42% 48%, rgba(70,50,28,0.1) 0%, transparent 100%),
+                radial-gradient(ellipse 40% 55% at 55% 52%, rgba(60,45,25,0.07) 0%, transparent 100%)`,
+            }}
+          />
+          {/* Dirt texture patches — scattered across full area */}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `
+                radial-gradient(ellipse 15% 10% at 25% 30%, rgba(100,75,40,0.05) 0%, transparent 100%),
+                radial-gradient(ellipse 10% 14% at 60% 40%, rgba(90,65,35,0.04) 0%, transparent 100%),
+                radial-gradient(ellipse 18% 12% at 40% 58%, rgba(80,60,30,0.035) 0%, transparent 100%),
+                radial-gradient(ellipse 12% 8% at 52% 25%, rgba(95,70,38,0.03) 0%, transparent 100%),
+                radial-gradient(ellipse 8% 12% at 35% 70%, rgba(85,62,32,0.025) 0%, transparent 100%),
+                radial-gradient(ellipse 14% 10% at 70% 65%, rgba(75,55,30,0.03) 0%, transparent 100%),
+                radial-gradient(ellipse 10% 16% at 20% 55%, rgba(88,63,33,0.02) 0%, transparent 100%)`,
+            }}
+          />
 
           <GameGrid />
           <BuildMenu />
