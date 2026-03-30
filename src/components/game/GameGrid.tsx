@@ -10,15 +10,15 @@ export function GameGrid() {
   const unlockedTileCount = useGameStore((s) => s.unlockedTileCount)
 
   return (
-    <div className="relative w-full max-w-[660px]">
+    <div className="relative w-full max-w-[780px] max-h-[calc(100vh-8rem)]">
       {/* Empire label */}
-      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-oil-600/40 uppercase tracking-[0.15em] select-none">
+      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-oil-600/30 uppercase tracking-[0.15em] select-none z-10">
         {unlockedTileCount <= 1 ? 'Your Empire Begins Here' : `${unlockedTileCount} plots claimed`}
       </div>
 
-      {/* World container — continuous terrain */}
-      <div className="relative rounded-lg overflow-hidden"
-        style={{ background: '#161310' }}
+      {/* World container — NO rounded corners, NO card feel, terrain fills to edges */}
+      <div className="relative overflow-hidden"
+        style={{ background: '#0e0c0a' }}
       >
         {/* Central warm zone — radial, NOT square. This is the main terrain light. */}
         <div className="absolute inset-0 pointer-events-none z-[1]"

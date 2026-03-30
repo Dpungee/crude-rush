@@ -324,18 +324,23 @@ export function GameShell() {
       <TopBar />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Grid area — centered with atmospheric lighting */}
-        <div className="flex-1 flex items-center justify-center p-3 relative bg-grid-pattern">
-          {/* Radial ambient glow behind the grid */}
+        {/* World area — NO grid pattern, NO padding, terrain fills the space */}
+        <div className="flex-1 flex items-center justify-center relative"
+          style={{ backgroundColor: '#0e0c0a' }}
+        >
+          {/* Warm ambient glow — circular, centered on board */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[500px] h-[500px] bg-crude-500/[0.03] rounded-full blur-[80px]" />
+            <div className="w-[600px] h-[600px] rounded-full blur-[100px]"
+              style={{ background: 'radial-gradient(circle, rgba(50,40,25,0.15) 0%, transparent 70%)' }} />
           </div>
           <GameGrid />
           <BuildMenu />
         </div>
 
-        {/* Side panel */}
-        <div className="w-80 xl:w-96 border-l border-oil-800/60 overflow-y-auto bg-oil-950/50 backdrop-blur-sm">
+        {/* Side panel — no visible border, just dark background */}
+        <div className="w-80 xl:w-96 overflow-y-auto"
+          style={{ backgroundColor: 'rgba(10,9,7,0.98)', borderLeft: '1px solid rgba(40,35,25,0.15)' }}
+        >
           <SidePanel />
         </div>
       </div>
