@@ -19,12 +19,6 @@ interface GridCellProps {
   cell: GridCellType
 }
 
-// ── Unified ground color — NO per-ring banding ────────────────────────────────
-// All cells share ONE base color. Terrain variation comes from the GameGrid
-// radial gradients, not from per-cell backgrounds. This eliminates square bands.
-const GROUND_COLOR = '#161310'
-
-// ── Building stat helpers ────────────────────────────────────────────────────
 const METRIC_COLOR: Record<BuildingType, string> = {
   oil_well:     'text-amber-400/90',
   pump_jack:    'text-sky-400/90',
@@ -45,7 +39,6 @@ function getBuildingMetric(type: BuildingType, level: number): string {
   return ''
 }
 
-// Deterministic "prop" placement based on coords
 function hashCoord(x: number, y: number, seed: number): number {
   return ((x * 7919 + y * 6271 + seed * 1031) & 0x7fffffff) % 100
 }
@@ -57,12 +50,9 @@ export function GridCell({ cell }: GridCellProps) {
   const selectedCell = useUiStore((s) => s.selectedCell)
   const addToast = useUiStore((s) => s.addToast)
   const trackEvent = useMissionStore((s) => s.trackEvent)
-
-  const [justBuilt, setJustBuilt] = useState(false)
   const plots = useGameStore((s) => s.plots)
   const sellFlashAt = useUiStore((s) => s.sellFlashAt)
 
-  // Sell flash — terminal tiles briefly glow when a sell happens
   const [sellFlash, setSellFlash] = useState(false)
   useEffect(() => {
     if (!sellFlashAt || !cell.building) return
@@ -77,7 +67,6 @@ export function GridCell({ cell }: GridCellProps) {
 
   const handleClick = () => {
     if (cell.status === 'locked') return
-
     if (cell.status === 'available') {
       if (!canAffordUnlock) {
         addToast({ message: `Need $${formatCommas(cell.unlockCost)} to unlock`, type: 'error' })
@@ -87,15 +76,10 @@ export function GridCell({ cell }: GridCellProps) {
       if (success) {
         trackEvent('tile_unlocked', 1)
         const regionName = RING_NAMES[cell.ring ?? 0] ?? 'Unknown'
-        addToast({
-          message: `🔓 ${regionName} plot claimed! -$${formatCommas(cell.unlockCost)}`,
-          type: 'success',
-          duration: 4000,
-        })
+        addToast({ message: `🔓 ${regionName} plot claimed! -$${formatCommas(cell.unlockCost)}`, type: 'success', duration: 4000 })
       }
       return
     }
-
     selectCell(cell.x, cell.y)
   }
 
@@ -106,40 +90,24 @@ export function GridCell({ cell }: GridCellProps) {
 
   const isUnderConstruction = !!cell.constructionEndsAt
   const constructionDef = cell.constructionType ? BUILDING_DEFINITIONS[cell.constructionType] : null
-
   const def = cell.building ? BUILDING_DEFINITIONS[cell.building] : null
-  const isProducer = cell.building && ['oil_well', 'pump_jack', 'derrick'].includes(cell.building)
-  const isRefinery = cell.building === 'refinery'
   const isTerminal = cell.building === 'oil_terminal'
   const metric = def ? getBuildingMetric(cell.building!, cell.level) : ''
-
-  const ring = cell.ring ?? 0
   const trait = cell.trait ?? 'normal'
   const isRareTile = trait === 'rich' || trait === 'gusher'
-  // Distance from center (0-1 normalized). Used for smooth fog falloff.
-  const cx = 5, cy = 5 // center of 11x11 grid
-  const dist = Math.sqrt((cell.x - cx) ** 2 + (cell.y - cy) ** 2) / 7.07 // max ~7.07
 
-  // Deterministic small prop variations
-  const h1 = hashCoord(cell.x, cell.y, 1)
-  const h2 = hashCoord(cell.x, cell.y, 2)
+  // Distance from center for smooth fog
+  const dist = Math.sqrt((cell.x - 5) ** 2 + (cell.y - 5) ** 2) / 7.07
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // LOCKED — dark fog, blends seamlessly into terrain
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
+  // LOCKED — TRANSPARENT cell with dark fog overlay. No background color.
+  // ════════════════════════════════════════════════════════════════════════════
   if (cell.status === 'locked') {
-    // Smooth distance-based fog — no square banding
-    const fogAlpha = Math.min(0.95, 0.45 + dist * 0.55)
+    const fogAlpha = Math.min(0.95, 0.4 + dist * 0.6)
     return (
-      <div className="relative aspect-square select-none"
-        style={{ backgroundColor: GROUND_COLOR }}
-      >
+      <div className="relative aspect-square select-none">
+        {/* Dark fog — sits on the transparent cell, terrain shows through faintly */}
         <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${fogAlpha.toFixed(2)})` }} />
-        {h1 < 20 && (
-          <div className="absolute rounded-full opacity-[0.04]"
-            style={{ width: '40%', height: '30%', backgroundColor: '#6b5234',
-              top: `${20 + (h2 % 40)}%`, left: `${15 + (h1 % 50)}%` }} />
-        )}
         {isRareTile && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className={cn('w-1.5 h-1.5 rounded-full animate-pulse',
@@ -150,49 +118,41 @@ export function GridCell({ cell }: GridCellProps) {
     )
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // AVAILABLE — frontier land, claimable (no box — just lighter ground with price)
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
+  // AVAILABLE — TRANSPARENT cell, just price label floating on terrain
+  // ════════════════════════════════════════════════════════════════════════════
   if (cell.status === 'available') {
     return (
       <button
         onClick={handleClick}
         className={cn(
           'relative aspect-square transition-all duration-200',
-          'hover:brightness-130 active:scale-[0.97]',
-          !canAffordUnlock && 'opacity-35'
+          'hover:brightness-150 active:scale-[0.97]',
+          !canAffordUnlock && 'opacity-30'
         )}
-        style={{ backgroundColor: GROUND_COLOR }}
       >
-        {/* Distance-based frontier haze — smoother than ring-based */}
-        <div className="absolute inset-0" style={{ backgroundColor: `rgba(10,10,10,${(0.2 + dist * 0.25).toFixed(2)})` }} />
+        {/* Light fog — transparent base, terrain shows through */}
+        <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${(0.15 + dist * 0.3).toFixed(2)})` }} />
 
-        {/* Subtle survey stakes — just two tiny marks */}
-        <div className="absolute top-[4px] left-[4px] w-[1px] h-[3px] bg-crude-600/25" />
-        <div className="absolute bottom-[4px] right-[4px] w-[1px] h-[3px] bg-crude-600/25" />
+        {/* Circular claim marker — NOT a square */}
+        <div className="absolute inset-[15%] rounded-full border border-dashed pointer-events-none"
+          style={{ borderColor: `rgba(212,160,23,${canAffordUnlock ? 0.2 : 0.08})` }} />
 
-        {/* Trait ground glow — seeps through the ground, no borders */}
+        {/* Trait glow */}
         {trait === 'gusher' && canAffordUnlock && (
-          <div className="absolute inset-[20%] rounded-full bg-crude-500/8 animate-pulse" />
-        )}
-        {trait === 'rich' && canAffordUnlock && (
-          <div className="absolute inset-[25%] rounded-full bg-amber-600/5" />
+          <div className="absolute inset-[20%] rounded-full bg-crude-500/10 animate-pulse" />
         )}
 
-        {/* Price label — floating on terrain */}
+        {/* Price */}
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
           {isRareTile && (
-            <span className={cn(
-              'text-[6px] font-black leading-none mb-0.5',
-              trait === 'gusher' ? 'text-crude-400/60' : 'text-amber-400/50'
-            )}>
-              {trait === 'gusher' ? '★ GUSHER' : '◆ RICH'}
+            <span className={cn('text-[6px] font-black leading-none mb-0.5',
+              trait === 'gusher' ? 'text-crude-400/60' : 'text-amber-400/50')}>
+              {trait === 'gusher' ? '★' : '◆'}
             </span>
           )}
-          <span className={cn(
-            'text-[8px] font-bold leading-none tabular-nums',
-            canAffordUnlock ? 'text-crude-400/70' : 'text-oil-600/40'
-          )}>
+          <span className={cn('text-[7px] font-bold leading-none tabular-nums',
+            canAffordUnlock ? 'text-crude-400/60' : 'text-oil-600/30')}>
             ${formatCommas(cell.unlockCost)}
           </span>
         </div>
@@ -200,117 +160,101 @@ export function GridCell({ cell }: GridCellProps) {
     )
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // UNLOCKED — owned territory. No boxes. Buildings sit on ground.
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
+  // UNLOCKED — TRANSPARENT cell. Buildings sit on circular pads.
+  // ════════════════════════════════════════════════════════════════════════════
   return (
     <button
       onClick={handleClick}
-      className={cn(
-        'relative aspect-square transition-all duration-150',
-        'hover:brightness-115 active:scale-[0.98]',
-      )}
-      style={{ backgroundColor: GROUND_COLOR }}
+      className="relative aspect-square transition-all duration-150 hover:brightness-120 active:scale-[0.98]"
     >
-      {/* Selection glow — subtle ground highlight, no border ring */}
+      {/* Selection = circular ground glow */}
       {isSelected && (
-        <div className="absolute inset-0 z-[1] pointer-events-none"
-          style={{ boxShadow: 'inset 0 0 8px rgba(212,160,23,0.3), 0 0 6px rgba(212,160,23,0.15)' }} />
+        <div className="absolute inset-[5%] rounded-full z-[1] pointer-events-none"
+          style={{ boxShadow: '0 0 12px rgba(212,160,23,0.35), inset 0 0 8px rgba(212,160,23,0.15)' }} />
       )}
 
-      {/* Trait ground seep — organic glow, not a box */}
-      {isRareTile && (
-        <div className={cn(
-          'absolute inset-[15%] rounded-full pointer-events-none',
-          trait === 'gusher' ? 'bg-crude-500/8' : 'bg-amber-600/5'
-        )} />
-      )}
-
-      {/* Ground props — rocks, scuffs — on all owned tiles (even empty) */}
-      {h1 < 30 && (
-        <div className="absolute rounded-full opacity-[0.08]"
-          style={{ width: '4px', height: '3px', backgroundColor: '#6b5834',
-            top: `${25 + (h2 % 35)}%`, left: `${15 + (h1 % 45)}%` }} />
-      )}
-      {h2 > 65 && (
-        <div className="absolute rounded-full opacity-[0.06]"
-          style={{ width: '3px', height: '2px', backgroundColor: '#5a4a2e',
-            bottom: `${18 + (h1 % 30)}%`, right: `${12 + (h2 % 35)}%` }} />
-      )}
-
-      {/* ── Building content ────────────────────────────────────────────── */}
+      {/* ── Building on circular pad ──────────────────────────────────── */}
       {def ? (
         <>
-          {/* Building shadow on ground — grounds the building visually */}
-          <div className="absolute inset-[15%] bottom-[5%] top-[25%] rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse, rgba(0,0,0,0.25) 0%, transparent 70%)' }} />
+          {/* Circular foundation pad — the building sits ON this */}
+          <div className="absolute inset-[8%] rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(40,35,25,0.7) 0%, rgba(30,25,18,0.4) 60%, transparent 100%)',
+            }}
+          />
 
-          {/* Building visual — larger, sits on ground */}
+          {/* Ground shadow */}
+          <div className="absolute inset-[20%] bottom-[8%] top-[30%] rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse, rgba(0,0,0,0.3) 0%, transparent 70%)' }} />
+
+          {/* Building */}
           <div className="absolute inset-[2%]">
-            <BuildingRenderer
-              type={cell.building!}
-              level={cell.level}
-              isUpgrading={isUnderConstruction}
-            />
+            <BuildingRenderer type={cell.building!} level={cell.level} isUpgrading={isUnderConstruction} />
           </div>
 
-          {/* Level badge — small, unobtrusive */}
-          <div className="absolute top-[1px] right-[2px] z-10 text-[5px] font-black text-oil-400/70 leading-tight">
+          {/* Level */}
+          <div className="absolute top-[1px] right-[3px] z-10 text-[5px] font-black text-oil-400/60">
             L{cell.level}
           </div>
 
-          {/* Trait badge */}
+          {/* Trait */}
           {isRareTile && (
-            <div className={cn(
-              'absolute top-[1px] left-[2px] z-10 text-[5px] font-black leading-tight',
-              trait === 'gusher' ? 'text-crude-400/60' : 'text-amber-400/50'
-            )}>
+            <div className={cn('absolute top-[1px] left-[3px] z-10 text-[5px] font-black',
+              trait === 'gusher' ? 'text-crude-400/50' : 'text-amber-400/40')}>
               {trait === 'gusher' ? '★' : '◆'}
             </div>
           )}
 
-          {/* Production metric — floating below building */}
+          {/* Metric */}
           {metric && (
-            <span className={cn(
-              'absolute bottom-[1px] left-1/2 -translate-x-1/2 text-[6px] font-bold leading-none tabular-nums z-10',
-              METRIC_COLOR[cell.building!]
-            )}>
+            <span className={cn('absolute bottom-[1px] left-1/2 -translate-x-1/2 text-[6px] font-bold leading-none tabular-nums z-10',
+              METRIC_COLOR[cell.building!])}>
               {metric}
             </span>
           )}
 
-          {/* Terminal aura — soft, no border */}
+          {/* Terminal glow */}
           {isTerminal && !isUnderConstruction && (
-            <div className="absolute inset-0 pointer-events-none animate-pulse"
-              style={{ boxShadow: 'inset 0 0 10px rgba(234,179,8,0.08)' }} />
+            <div className="absolute inset-[5%] rounded-full pointer-events-none animate-pulse"
+              style={{ boxShadow: '0 0 10px rgba(234,179,8,0.1)' }} />
           )}
 
           {/* Sell flash */}
           {sellFlash && (
-            <div className="absolute inset-0 pointer-events-none sell-flash" />
+            <div className="absolute inset-[5%] rounded-full pointer-events-none sell-flash" />
           )}
         </>
       ) : isUnderConstruction && constructionDef ? (
-        /* Under construction — ghost building + caution indicator */
-        <div className="absolute inset-[2%]">
-          <ConstructionPreview type={cell.constructionType!} />
-          {/* Caution stripe */}
-          <div className="absolute bottom-0 left-[10%] right-[10%] h-[3px] overflow-hidden rounded-full">
-            <div className="h-full w-[200%] animate-oil-flow"
-              style={{ background: 'repeating-linear-gradient(90deg, #f59e0b33 0px, #f59e0b33 4px, transparent 4px, transparent 8px)' }} />
+        /* Construction site — circular pad with ghost building */
+        <>
+          <div className="absolute inset-[12%] rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(40,35,20,0.5) 0%, transparent 80%)' }} />
+          <div className="absolute inset-[2%]">
+            <ConstructionPreview type={cell.constructionType!} />
           </div>
-        </div>
+          {/* Caution ring instead of caution stripe */}
+          <div className="absolute inset-[10%] rounded-full border border-dashed border-amber-500/20 pointer-events-none animate-pulse" />
+        </>
       ) : isFirstEmptyPlot ? (
-        /* First empty plot — subtle beacon, no box */
-        <div className="absolute inset-0 flex flex-col items-center justify-center plot-beacon">
-          <span className="text-sm text-amber-500/60 leading-none select-none font-bold">+</span>
-          <span className="text-[6px] font-bold text-amber-500/40 leading-none mt-0.5">BUILD</span>
-        </div>
+        /* First build site — circular pad with + marker */
+        <>
+          <div className="absolute inset-[15%] rounded-full pointer-events-none plot-beacon"
+            style={{ background: 'radial-gradient(circle, rgba(50,40,20,0.4) 0%, transparent 80%)' }} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-sm text-amber-500/60 leading-none select-none font-bold">+</span>
+            <span className="text-[5px] font-bold text-amber-500/35 leading-none mt-0.5">BUILD</span>
+          </div>
+        </>
       ) : (
-        /* Empty owned plot — just a tiny + on bare ground */
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[8px] text-oil-700/20 select-none">+</span>
-        </div>
+        /* Empty owned — faint circular pad */
+        <>
+          <div className="absolute inset-[20%] rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(35,30,20,0.25) 0%, transparent 80%)' }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[7px] text-oil-700/15 select-none">+</span>
+          </div>
+        </>
       )}
     </button>
   )

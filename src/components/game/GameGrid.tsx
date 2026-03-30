@@ -16,28 +16,33 @@ export function GameGrid() {
         {unlockedTileCount <= 1 ? 'Your Empire Begins Here' : `${unlockedTileCount} plots claimed`}
       </div>
 
-      {/* FORCED TEST: bright red bg to prove this component renders. Remove after verification. */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-xs font-black px-3 py-1 rounded">
-        BOARD V2 — TEST
-      </div>
-
-      {/* World container */}
+      {/* TERRAIN — one continuous ground surface. Cells are transparent on top. */}
       <div className="relative overflow-hidden"
-        style={{ background: '#330000' }}
+        style={{ background: '#0e0c0a' }}
       >
-        {/* Central warm zone — radial, NOT square. This is the main terrain light. */}
+        {/* Radial warm center — circular light, not square bands */}
         <div className="absolute inset-0 pointer-events-none z-[1]"
           style={{
             backgroundImage: `
-              radial-gradient(circle at 50% 50%, rgba(50,40,28,0.5) 0%, rgba(30,25,18,0.3) 25%, transparent 55%),
-              radial-gradient(ellipse 60% 50% at 40% 45%, rgba(80,60,35,0.08) 0%, transparent 100%),
-              radial-gradient(ellipse 40% 60% at 60% 55%, rgba(70,55,30,0.06) 0%, transparent 100%),
-              radial-gradient(ellipse 30% 25% at 25% 30%, rgba(90,65,35,0.04) 0%, transparent 100%),
-              radial-gradient(ellipse 25% 30% at 75% 70%, rgba(85,60,30,0.03) 0%, transparent 100%)`,
+              radial-gradient(circle at 50% 50%, rgba(55,42,25,0.6) 0%, rgba(35,28,18,0.35) 20%, rgba(20,16,10,0.15) 40%, transparent 60%),
+              radial-gradient(ellipse 50% 40% at 45% 48%, rgba(70,50,28,0.12) 0%, transparent 100%),
+              radial-gradient(ellipse 35% 45% at 58% 52%, rgba(60,45,25,0.08) 0%, transparent 100%)`,
           }}
         />
 
-        {/* Grid — ZERO gap, seamless continuous ground */}
+        {/* Dirt texture patches — organic, irregular */}
+        <div className="absolute inset-0 pointer-events-none z-[1]"
+          style={{
+            backgroundImage: `
+              radial-gradient(ellipse 12% 8% at 30% 35%, rgba(100,75,40,0.06) 0%, transparent 100%),
+              radial-gradient(ellipse 8% 12% at 65% 45%, rgba(90,65,35,0.05) 0%, transparent 100%),
+              radial-gradient(ellipse 15% 10% at 42% 62%, rgba(80,60,30,0.04) 0%, transparent 100%),
+              radial-gradient(ellipse 10% 7% at 55% 30%, rgba(95,70,38,0.04) 0%, transparent 100%),
+              radial-gradient(ellipse 6% 10% at 38% 72%, rgba(85,62,32,0.03) 0%, transparent 100%)`,
+          }}
+        />
+
+        {/* Grid — cells are TRANSPARENT. Terrain shows through. */}
         <div className="relative">
           <div
             className="relative grid w-full aspect-square z-[2]"
@@ -51,7 +56,7 @@ export function GameGrid() {
             ))}
           </div>
 
-          {/* Pipeline connections between adjacent buildings */}
+          {/* Pipeline connections */}
           <PipelineOverlay plots={plots} />
         </div>
       </div>
