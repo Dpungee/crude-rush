@@ -87,10 +87,13 @@ export function SellPanel() {
   const isBoom = marketState === 'boom' || marketState === 'bull'
   const isCrash = marketState === 'crash' || marketState === 'bear'
 
+  const triggerSellFlash = useUiStore((s) => s.triggerSellFlash)
+
   const handleSellCrude = () => {
     if (crudeOil < 1) return
     sellCrudeOil(crudeOil)
     trackEvent('oil_sold', 1)
+    triggerSellFlash()
     addToast({
       message: `💰 +$${formatCommas(totalCrudeValue)} from ${formatNumber(crudeOil)} bbl crude`,
       type: 'reward',
@@ -102,6 +105,7 @@ export function SellPanel() {
     if (refinedOil < 1) return
     sellRefinedOil(refinedOil)
     trackEvent('oil_sold', 1)
+    triggerSellFlash()
     addToast({
       message: `💰 +$${formatCommas(totalRefinedValue)} from ${formatNumber(refinedOil)} bbl refined`,
       type: 'reward',

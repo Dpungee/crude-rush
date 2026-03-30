@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { GridCell as GridCellType, BuildingType } from '@/engine/types'
 import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -65,6 +65,17 @@ export function GridCell({ cell }: GridCellProps) {
 
   const [justBuilt, setJustBuilt] = useState(false)
   const plots = useGameStore((s) => s.plots)
+  const sellFlashAt = useUiStore((s) => s.sellFlashAt)
+
+  // Sell flash — terminal tiles briefly glow when a sell happens
+  const [sellFlash, setSellFlash] = useState(false)
+  useEffect(() => {
+    if (!sellFlashAt || !cell.building) return
+    if (cell.building !== 'oil_terminal' && cell.building !== 'refinery') return
+    setSellFlash(true)
+    const t = setTimeout(() => setSellFlash(false), 600)
+    return () => clearTimeout(t)
+  }, [sellFlashAt, cell.building])
 
   const isSelected = selectedCell?.x === cell.x && selectedCell?.y === cell.y
   const canAffordUnlock = petrodollars >= cell.unlockCost
@@ -346,6 +357,11 @@ export function GridCell({ cell }: GridCellProps) {
           {/* Terminal aura */}
           {isTerminal && !isUnderConstruction && (
             <div className="absolute -inset-[2px] rounded-[2px] border border-yellow-500/10 animate-pulse pointer-events-none" />
+          )}
+
+          {/* Sell flash — brief golden pulse on terminals/refineries */}
+          {sellFlash && (
+            <div className="absolute inset-0 pointer-events-none sell-flash rounded-[2px]" />
           )}
 
           {/* Ground pipe stubs on developed plots */}

@@ -28,6 +28,10 @@ interface UiState {
   // Build menu
   showBuildMenu: boolean
   setShowBuildMenu: (show: boolean) => void
+
+  // Sell flash — timestamp of last sell action for visual feedback
+  sellFlashAt: number
+  triggerSellFlash: () => void
 }
 
 let toastId = 0
@@ -65,4 +69,7 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   showBuildMenu: false,
   setShowBuildMenu: (show) => set({ showBuildMenu: show }),
+
+  sellFlashAt: 0,
+  triggerSellFlash: () => set({ sellFlashAt: Date.now() }),
 }))
