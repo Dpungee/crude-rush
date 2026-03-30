@@ -13,12 +13,12 @@ import { cn } from '@/lib/utils'
 import type { PanelTab } from '@/types'
 
 const TABS: { id: PanelTab; label: string; icon: string }[] = [
-  { id: 'market',      label: 'SELL',     icon: '💱' },
-  { id: 'upgrades',    label: 'BUILD',    icon: '⚡' },
-  { id: 'token',       label: '$CRUDE',   icon: '🪙' },
-  { id: 'missions',    label: 'TASKS',    icon: '🎯' },
-  { id: 'leaderboard', label: 'RANK',     icon: '🏆' },
-  { id: 'prestige',    label: 'RESET',    icon: '🌟' },
+  { id: 'market',      label: 'Sell',   icon: '💱' },
+  { id: 'upgrades',    label: 'Build',  icon: '⚡' },
+  { id: 'token',       label: 'Token',  icon: '🪙' },
+  { id: 'missions',    label: 'Tasks',  icon: '🎯' },
+  { id: 'leaderboard', label: 'Rank',   icon: '🏆' },
+  { id: 'prestige',    label: 'Reset',  icon: '🌟' },
 ]
 
 export function SidePanel() {
@@ -37,15 +37,10 @@ export function SidePanel() {
   }
 
   return (
-    <div className="h-full flex flex-col"
-      style={{
-        background: 'linear-gradient(180deg, rgba(12,11,9,0.97) 0%, rgba(10,9,7,0.98) 100%)',
-        borderLeft: '1px solid rgba(50,45,35,0.2)',
-      }}
-    >
-      {/* Tab bar — compact, no emojis as primary, text-driven */}
-      <div className="flex overflow-x-auto scrollbar-none"
-        style={{ borderBottom: '1px solid rgba(50,45,35,0.25)' }}
+    <div className="h-full flex flex-col">
+      {/* Icon tabs — compact game-style */}
+      <div className="flex items-center justify-around py-1.5 px-1"
+        style={{ borderBottom: '1px solid rgba(40,35,25,0.15)' }}
       >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id
@@ -55,28 +50,24 @@ export function SidePanel() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'relative flex-1 min-w-0 py-2 text-[8px] font-black uppercase tracking-wider transition-all text-center',
+                'relative flex flex-col items-center gap-0.5 px-1.5 py-1 rounded transition-all',
                 isActive
-                  ? 'text-crude-400'
-                  : 'text-oil-600 hover:text-oil-400'
+                  ? 'text-crude-400 bg-crude-500/8'
+                  : 'text-oil-600 hover:text-oil-400 hover:bg-oil-800/10'
               )}
             >
-              {tab.label}
-              {/* Active indicator — bottom line */}
-              {isActive && (
-                <div className="absolute bottom-0 left-[20%] right-[20%] h-[2px] bg-crude-500 rounded-full" />
-              )}
-              {/* Notification dot */}
+              <span className="text-[11px] leading-none">{tab.icon}</span>
+              <span className="text-[6px] font-bold uppercase tracking-wider leading-none">{tab.label}</span>
               {hasNotif && !isActive && (
-                <span className="absolute top-1.5 right-[15%] w-1 h-1 rounded-full bg-crude-500 animate-pulse" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-crude-500 animate-pulse" />
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Panel content */}
-      <div className="flex-1 overflow-y-auto p-3 scrollbar-none">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-2.5 scrollbar-none">
         {activeTab === 'market'      && <SellPanel />}
         {activeTab === 'upgrades'    && <UpgradePanel />}
         {activeTab === 'token'       && <TokenPanel />}

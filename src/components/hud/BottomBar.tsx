@@ -8,17 +8,17 @@ export function BottomBar() {
   const lifetimeBarrels = useGameStore((s) => s.lifetimeBarrels)
 
   return (
-    <div className="px-3 py-1 flex items-center gap-2 flex-shrink-0"
+    <div className="flex items-center gap-2 px-3 py-1"
       style={{
-        background: 'linear-gradient(0deg, rgba(12,11,9,0.95) 0%, rgba(12,11,9,0.85) 100%)',
-        borderTop: '1px solid rgba(50,45,35,0.2)',
+        background: 'linear-gradient(0deg, rgba(10,9,7,0.85) 0%, rgba(10,9,7,0.5) 80%, transparent 100%)',
+        backdropFilter: 'blur(4px)',
       }}
     >
       <div className="flex-1 min-w-0">
         <NextGoalCard />
       </div>
-      <span className="text-[9px] text-oil-600 tabular-nums shrink-0">
-        {formatNumber(lifetimeBarrels)} bbl lifetime
+      <span className="text-[8px] text-oil-600/40 tabular-nums shrink-0">
+        {formatNumber(lifetimeBarrels)} bbl
       </span>
     </div>
   )
