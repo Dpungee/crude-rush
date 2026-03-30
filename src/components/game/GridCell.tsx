@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { GridCell as GridCellType, BuildingType } from '@/engine/types'
 import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -39,9 +39,35 @@ function getBuildingMetric(type: BuildingType, level: number): string {
   return ''
 }
 
-function hashCoord(x: number, y: number, seed: number): number {
-  return ((x * 7919 + y * 6271 + seed * 1031) & 0x7fffffff) % 100
+// Deterministic hash per cell — breaks grid alignment
+function cellHash(x: number, y: number, seed: number): number {
+  return ((x * 7919 + y * 6271 + seed * 1031) & 0x7fffffff) / 0x7fffffff
 }
+
+function useCellJitter(x: number, y: number) {
+  return useMemo(() => {
+    const h1 = cellHash(x, y, 1)
+    const h2 = cellHash(x, y, 2)
+    const h3 = cellHash(x, y, 3)
+    const h4 = cellHash(x, y, 4)
+    const h5 = cellHash(x, y, 5)
+    return {
+      offsetX: (h1 - 0.5) * 12,
+      offsetY: (h2 - 0.5) * 10,
+      padSize: 70 + h3 * 20,
+      padStretchX: 0.85 + h4 * 0.3,
+      padStretchY: 0.85 + h5 * 0.3,
+      padRotation: (h1 - 0.5) * 15,
+      padType: Math.floor(h2 * 3),
+    }
+  }, [x, y])
+}
+
+const PAD_STYLES = [
+  'radial-gradient(ellipse, rgba(55,42,25,0.55) 0%, rgba(40,32,18,0.3) 50%, transparent 80%)',
+  'radial-gradient(ellipse, rgba(70,65,55,0.45) 0%, rgba(50,45,35,0.25) 50%, transparent 80%)',
+  'radial-gradient(ellipse, rgba(45,38,28,0.5) 0%, rgba(35,30,20,0.28) 50%, transparent 80%)',
+]
 
 export function GridCell({ cell }: GridCellProps) {
   const unlockTile = useGameStore((s) => s.unlockTile)
@@ -62,6 +88,7 @@ export function GridCell({ cell }: GridCellProps) {
     return () => clearTimeout(t)
   }, [sellFlashAt, cell.building])
 
+  const jitter = useCellJitter(cell.x, cell.y)
   const isSelected = selectedCell?.x === cell.x && selectedCell?.y === cell.y
   const canAffordUnlock = petrodollars >= cell.unlockCost
 
@@ -95,64 +122,52 @@ export function GridCell({ cell }: GridCellProps) {
   const metric = def ? getBuildingMetric(cell.building!, cell.level) : ''
   const trait = cell.trait ?? 'normal'
   const isRareTile = trait === 'rich' || trait === 'gusher'
-
-  // Distance from center for smooth fog
   const dist = Math.sqrt((cell.x - 5) ** 2 + (cell.y - 5) ** 2) / 7.07
+  const padBg = PAD_STYLES[jitter.padType]
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // LOCKED — TRANSPARENT cell with dark fog overlay. No background color.
-  // ════════════════════════════════════════════════════════════════════════════
+  // LOCKED
   if (cell.status === 'locked') {
     const fogAlpha = Math.min(0.95, 0.4 + dist * 0.6)
     return (
       <div className="relative aspect-square select-none">
-        {/* Dark fog — sits on the transparent cell, terrain shows through faintly */}
         <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${fogAlpha.toFixed(2)})` }} />
         {isRareTile && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className={cn('w-1.5 h-1.5 rounded-full animate-pulse',
-              trait === 'gusher' ? 'bg-crude-500/20' : 'bg-amber-500/12')} />
+              trait === 'gusher' ? 'bg-crude-500/15' : 'bg-amber-500/8')} />
           </div>
         )}
       </div>
     )
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // AVAILABLE — TRANSPARENT cell, just price label floating on terrain
-  // ════════════════════════════════════════════════════════════════════════════
+  // AVAILABLE — irregular dirt marking, no dashed circles
   if (cell.status === 'available') {
     return (
-      <button
-        onClick={handleClick}
-        className={cn(
-          'relative aspect-square transition-all duration-200',
-          'hover:brightness-150 active:scale-[0.97]',
-          !canAffordUnlock && 'opacity-30'
-        )}
-      >
-        {/* Light fog — transparent base, terrain shows through */}
-        <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${(0.15 + dist * 0.3).toFixed(2)})` }} />
-
-        {/* Circular claim marker — NOT a square */}
-        <div className="absolute inset-[15%] rounded-full border border-dashed pointer-events-none"
-          style={{ borderColor: `rgba(212,160,23,${canAffordUnlock ? 0.2 : 0.08})` }} />
-
-        {/* Trait glow */}
+      <button onClick={handleClick}
+        className={cn('relative aspect-square transition-all duration-200 hover:brightness-150 active:scale-[0.97]',
+          !canAffordUnlock && 'opacity-25')}>
+        <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${(0.1 + dist * 0.25).toFixed(2)})` }} />
+        <div className="absolute pointer-events-none"
+          style={{
+            inset: `${(100 - jitter.padSize) / 2}%`,
+            background: padBg,
+            transform: `rotate(${jitter.padRotation}deg) scaleX(${jitter.padStretchX}) scaleY(${jitter.padStretchY})`,
+            borderRadius: '40% 50% 45% 55%',
+          }} />
         {trait === 'gusher' && canAffordUnlock && (
-          <div className="absolute inset-[20%] rounded-full bg-crude-500/10 animate-pulse" />
+          <div className="absolute inset-[25%] rounded-full bg-crude-500/8 animate-pulse" />
         )}
-
-        {/* Price */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10"
+          style={{ transform: `translate(${jitter.offsetX * 0.3}%, ${jitter.offsetY * 0.3}%)` }}>
           {isRareTile && (
             <span className={cn('text-[6px] font-black leading-none mb-0.5',
-              trait === 'gusher' ? 'text-crude-400/60' : 'text-amber-400/50')}>
+              trait === 'gusher' ? 'text-crude-400/50' : 'text-amber-400/35')}>
               {trait === 'gusher' ? '★' : '◆'}
             </span>
           )}
           <span className={cn('text-[7px] font-bold leading-none tabular-nums',
-            canAffordUnlock ? 'text-crude-400/60' : 'text-oil-600/30')}>
+            canAffordUnlock ? 'text-crude-400/50' : 'text-oil-600/20')}>
             ${formatCommas(cell.unlockCost)}
           </span>
         </div>
@@ -160,103 +175,92 @@ export function GridCell({ cell }: GridCellProps) {
     )
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // UNLOCKED — TRANSPARENT cell. Buildings sit on circular pads.
-  // ════════════════════════════════════════════════════════════════════════════
+  // UNLOCKED — building or empty pad, all positions jittered
   return (
-    <button
-      onClick={handleClick}
-      className="relative aspect-square transition-all duration-150 hover:brightness-120 active:scale-[0.98]"
-    >
-      {/* Selection = circular ground glow */}
+    <button onClick={handleClick}
+      className="relative aspect-square transition-all duration-150 hover:brightness-120 active:scale-[0.98]">
       {isSelected && (
-        <div className="absolute inset-[5%] rounded-full z-[1] pointer-events-none"
-          style={{ boxShadow: '0 0 12px rgba(212,160,23,0.35), inset 0 0 8px rgba(212,160,23,0.15)' }} />
+        <div className="absolute pointer-events-none z-[1]"
+          style={{
+            inset: '3%', borderRadius: '40% 50% 45% 55%',
+            boxShadow: '0 0 14px rgba(212,160,23,0.3), inset 0 0 8px rgba(212,160,23,0.12)',
+            transform: `rotate(${jitter.padRotation}deg)`,
+          }} />
       )}
 
-      {/* ── Building on circular pad ──────────────────────────────────── */}
       {def ? (
         <>
-          {/* Circular foundation pad — the building sits ON this */}
-          <div className="absolute inset-[8%] rounded-full pointer-events-none"
+          <div className="absolute pointer-events-none"
             style={{
-              background: 'radial-gradient(circle, rgba(40,35,25,0.7) 0%, rgba(30,25,18,0.4) 60%, transparent 100%)',
-            }}
-          />
-
-          {/* Ground shadow */}
-          <div className="absolute inset-[20%] bottom-[8%] top-[30%] rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse, rgba(0,0,0,0.3) 0%, transparent 70%)' }} />
-
-          {/* Building */}
-          <div className="absolute inset-[2%]">
+              inset: `${(100 - jitter.padSize) / 2}%`, background: padBg,
+              transform: `rotate(${jitter.padRotation}deg) scaleX(${jitter.padStretchX}) scaleY(${jitter.padStretchY})`,
+              borderRadius: '40% 50% 45% 55%',
+            }} />
+          <div className="absolute inset-0"
+            style={{ transform: `translate(${jitter.offsetX}%, ${jitter.offsetY}%)` }}>
             <BuildingRenderer type={cell.building!} level={cell.level} isUpgrading={isUnderConstruction} />
           </div>
-
-          {/* Level */}
-          <div className="absolute top-[1px] right-[3px] z-10 text-[5px] font-black text-oil-400/60">
+          <div className="absolute z-10 text-[5px] font-black text-oil-400/50"
+            style={{ top: `${2 + jitter.offsetY}%`, right: `${4 - jitter.offsetX}%` }}>
             L{cell.level}
           </div>
-
-          {/* Trait */}
           {isRareTile && (
-            <div className={cn('absolute top-[1px] left-[3px] z-10 text-[5px] font-black',
-              trait === 'gusher' ? 'text-crude-400/50' : 'text-amber-400/40')}>
+            <div className={cn('absolute z-10 text-[5px] font-black',
+              trait === 'gusher' ? 'text-crude-400/40' : 'text-amber-400/30')}
+              style={{ top: `${2 + jitter.offsetY}%`, left: `${4 + jitter.offsetX}%` }}>
               {trait === 'gusher' ? '★' : '◆'}
             </div>
           )}
-
-          {/* Metric */}
           {metric && (
-            <span className={cn('absolute bottom-[1px] left-1/2 -translate-x-1/2 text-[6px] font-bold leading-none tabular-nums z-10',
-              METRIC_COLOR[cell.building!])}>
+            <span className={cn('absolute left-1/2 z-10 text-[6px] font-bold leading-none tabular-nums', METRIC_COLOR[cell.building!])}
+              style={{ bottom: `${2 + jitter.offsetY * 0.5}%`, transform: `translateX(calc(-50% + ${jitter.offsetX * 0.5}%))` }}>
               {metric}
             </span>
           )}
-
-          {/* Ambient dust drift on building sites */}
-          <div className="absolute bottom-[5%] left-[10%] w-[40%] h-[6%] rounded-full pointer-events-none animate-dust"
-            style={{ background: 'radial-gradient(ellipse, rgba(120,100,70,0.06) 0%, transparent 80%)' }} />
-
-          {/* Terminal glow */}
           {isTerminal && !isUnderConstruction && (
-            <div className="absolute inset-[5%] rounded-full pointer-events-none animate-pulse"
-              style={{ boxShadow: '0 0 10px rgba(234,179,8,0.1)' }} />
+            <div className="absolute inset-[8%] rounded-full pointer-events-none animate-pulse"
+              style={{ boxShadow: '0 0 10px rgba(234,179,8,0.08)' }} />
           )}
-
-          {/* Sell flash */}
-          {sellFlash && (
-            <div className="absolute inset-[5%] rounded-full pointer-events-none sell-flash" />
-          )}
+          {sellFlash && <div className="absolute inset-[5%] rounded-full pointer-events-none sell-flash" />}
         </>
       ) : isUnderConstruction && constructionDef ? (
-        /* Construction site — circular pad with ghost building */
         <>
-          <div className="absolute inset-[12%] rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(40,35,20,0.5) 0%, transparent 80%)' }} />
-          <div className="absolute inset-[2%]">
+          <div className="absolute pointer-events-none"
+            style={{
+              inset: `${(100 - jitter.padSize * 0.9) / 2}%`, background: padBg,
+              transform: `rotate(${jitter.padRotation}deg)`, borderRadius: '40% 50% 45% 55%',
+            }} />
+          <div className="absolute inset-0" style={{ transform: `translate(${jitter.offsetX}%, ${jitter.offsetY}%)` }}>
             <ConstructionPreview type={cell.constructionType!} />
           </div>
-          {/* Caution ring instead of caution stripe */}
-          <div className="absolute inset-[10%] rounded-full border border-dashed border-amber-500/20 pointer-events-none animate-pulse" />
         </>
       ) : isFirstEmptyPlot ? (
-        /* First build site — circular pad with + marker */
         <>
-          <div className="absolute inset-[15%] rounded-full pointer-events-none plot-beacon"
-            style={{ background: 'radial-gradient(circle, rgba(50,40,20,0.4) 0%, transparent 80%)' }} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-sm text-amber-500/60 leading-none select-none font-bold">+</span>
-            <span className="text-[5px] font-bold text-amber-500/35 leading-none mt-0.5">BUILD</span>
+          <div className="absolute pointer-events-none plot-beacon"
+            style={{
+              inset: `${(100 - jitter.padSize) / 2}%`,
+              background: 'radial-gradient(ellipse, rgba(55,42,20,0.5) 0%, rgba(40,30,15,0.2) 60%, transparent 90%)',
+              transform: `rotate(${jitter.padRotation}deg) scaleX(${jitter.padStretchX})`,
+              borderRadius: '40% 50% 45% 55%',
+            }} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center"
+            style={{ transform: `translate(${jitter.offsetX * 0.5}%, ${jitter.offsetY * 0.5}%)` }}>
+            <span className="text-sm text-amber-500/50 leading-none select-none font-bold">+</span>
+            <span className="text-[5px] font-bold text-amber-500/25 leading-none mt-0.5">BUILD</span>
           </div>
         </>
       ) : (
-        /* Empty owned — faint circular pad */
         <>
-          <div className="absolute inset-[20%] rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(35,30,20,0.25) 0%, transparent 80%)' }} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-[7px] text-oil-700/15 select-none">+</span>
+          <div className="absolute pointer-events-none"
+            style={{
+              inset: `${(100 - jitter.padSize * 0.7) / 2}%`,
+              background: 'radial-gradient(ellipse, rgba(30,25,15,0.2) 0%, transparent 80%)',
+              transform: `rotate(${jitter.padRotation * 1.5}deg) scaleX(${jitter.padStretchX})`,
+              borderRadius: '45% 55% 40% 50%',
+            }} />
+          <div className="absolute inset-0 flex items-center justify-center"
+            style={{ transform: `translate(${jitter.offsetX * 0.4}%, ${jitter.offsetY * 0.4}%)` }}>
+            <span className="text-[6px] text-oil-700/10 select-none">+</span>
           </div>
         </>
       )}
