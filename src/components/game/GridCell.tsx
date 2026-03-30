@@ -214,6 +214,10 @@ export function GridCell({ cell }: GridCellProps) {
             </span>
           )}
 
+          {/* Ambient dust drift on building sites */}
+          <div className="absolute bottom-[5%] left-[10%] w-[40%] h-[6%] rounded-full pointer-events-none animate-dust"
+            style={{ background: 'radial-gradient(ellipse, rgba(120,100,70,0.06) 0%, transparent 80%)' }} />
+
           {/* Terminal glow */}
           {isTerminal && !isUnderConstruction && (
             <div className="absolute inset-[5%] rounded-full pointer-events-none animate-pulse"

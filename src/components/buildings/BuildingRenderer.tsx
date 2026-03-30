@@ -246,10 +246,16 @@ function Refinery({ level, isUpgrading }: { level: number; isUpgrading: boolean 
         </>
       )}
 
-      {/* Heat glow */}
+      {/* Heat glow at base */}
       {!isUpgrading && (
         <div className="absolute bottom-[8%] left-[8%] w-[84%] h-[12%]"
           style={{ background: 'linear-gradient(to top, rgba(220,38,38,0.2), transparent)' }} />
+      )}
+
+      {/* Heat shimmer above columns */}
+      {!isUpgrading && (
+        <div className="absolute -top-[8%] left-[5%] w-[60%] h-[10%] animate-heat"
+          style={{ background: 'linear-gradient(to top, rgba(220,100,50,0.08), transparent)' }} />
       )}
 
       {/* Flare at high level */}
@@ -340,18 +346,40 @@ export function BuildingRenderer({ type, level, isUpgrading }: BuildingProps) {
   return (
     <div className="w-full h-full relative" style={{ transform: `scale(${scale.toFixed(3)})` }}>
       <Component level={level} isUpgrading={isUpgrading} />
-      {/* Scaffold overlay when upgrading */}
+      {/* Construction scene when upgrading */}
       {isUpgrading && (
         <div className="absolute inset-0 pointer-events-none">
-          {/* Scaffold poles */}
-          <div className="absolute left-[10%] top-[10%] w-[2px] h-[80%] bg-amber-600/30" />
-          <div className="absolute right-[10%] top-[10%] w-[2px] h-[80%] bg-amber-600/30" />
+          {/* Scaffold frame */}
+          <div className="absolute left-[8%] top-[8%] w-[2px] h-[84%] bg-amber-700/35" />
+          <div className="absolute right-[8%] top-[8%] w-[2px] h-[84%] bg-amber-700/35" />
+          <div className="absolute left-[25%] top-[5%] w-[2px] h-[70%] bg-amber-600/25" />
           {/* Scaffold planks */}
-          <div className="absolute top-[30%] left-[10%] right-[10%] h-[2px] bg-amber-500/25" />
-          <div className="absolute top-[55%] left-[10%] right-[10%] h-[2px] bg-amber-500/20" />
-          {/* Tarp overlay */}
-          <div className="absolute inset-[8%] bg-amber-900/10 rounded-[2px]" />
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] text-amber-400/40 font-black">⚒️</span>
+          <div className="absolute top-[25%] left-[8%] right-[8%] h-[2px] bg-amber-500/30" />
+          <div className="absolute top-[48%] left-[8%] right-[8%] h-[2px] bg-amber-500/25" />
+          <div className="absolute top-[70%] left-[8%] right-[8%] h-[2px] bg-amber-500/20" />
+
+          {/* Crane arm — swings slowly */}
+          <div className="absolute top-[3%] left-[20%] w-[50%] h-[2px] bg-amber-600/40 animate-crane" />
+          {/* Crane cable */}
+          <div className="absolute top-[3%] left-[65%] w-[1px] h-[25%] bg-amber-500/20 animate-crane" />
+
+          {/* Welding sparks — intermittent bright dots */}
+          <div className="absolute top-[28%] left-[35%] w-[3px] h-[3px] rounded-full bg-yellow-300/80 animate-spark" />
+          <div className="absolute top-[50%] right-[25%] w-[2px] h-[2px] rounded-full bg-orange-400/60 animate-spark"
+            style={{ animationDelay: '0.4s' }} />
+          <div className="absolute top-[42%] left-[22%] w-[2px] h-[2px] rounded-full bg-yellow-200/50 animate-spark"
+            style={{ animationDelay: '0.8s' }} />
+
+          {/* Worker lights — blinking at work site */}
+          <div className="absolute bottom-[15%] left-[12%] w-[3px] h-[3px] rounded-full bg-amber-400/50 animate-worker-light" />
+          <div className="absolute bottom-[15%] right-[12%] w-[3px] h-[3px] rounded-full bg-amber-400/50 animate-worker-light"
+            style={{ animationDelay: '0.7s' }} />
+
+          {/* Dust at base */}
+          <div className="absolute bottom-[8%] left-[15%] w-[70%] h-[8%] rounded-full bg-stone-500/8 animate-dust" />
+
+          {/* Semi-transparent construction tarp */}
+          <div className="absolute inset-[6%] bg-amber-900/8 rounded-[2px]" />
         </div>
       )}
     </div>

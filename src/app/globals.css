@@ -239,6 +239,64 @@
     50% { box-shadow: 0 0 20px rgba(217, 119, 6, 0.45), inset 0 0 10px rgba(217, 119, 6, 0.1); }
   }
 
+  /* ── Construction sparks — intermittent bright flashes ── */
+  .animate-spark {
+    animation: spark 0.8s ease-out infinite;
+  }
+  @keyframes spark {
+    0%, 70%, 100% { opacity: 0; transform: scale(0.5); }
+    75% { opacity: 1; transform: scale(1.2); }
+    85% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  /* ── Crane arm swing ── */
+  .animate-crane {
+    animation: crane-swing 3s ease-in-out infinite;
+    transform-origin: left center;
+  }
+  @keyframes crane-swing {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-12deg); }
+  }
+
+  /* ── Dust drift — slow horizontal float ── */
+  .animate-dust {
+    animation: dust-drift 4s ease-in-out infinite;
+  }
+  @keyframes dust-drift {
+    0% { opacity: 0.06; transform: translateX(0); }
+    50% { opacity: 0.12; transform: translateX(4px); }
+    100% { opacity: 0.06; transform: translateX(0); }
+  }
+
+  /* ── Worker light — alternating blink ── */
+  .animate-worker-light {
+    animation: worker-blink 1.5s step-end infinite;
+  }
+  @keyframes worker-blink {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 0.15; }
+  }
+
+  /* ── Build complete flash ── */
+  .build-complete-flash {
+    animation: build-complete 0.6s ease-out both;
+  }
+  @keyframes build-complete {
+    0% { box-shadow: 0 0 20px rgba(234,179,8,0.5); transform: scale(1.05); }
+    50% { box-shadow: 0 0 30px rgba(234,179,8,0.3); transform: scale(1.02); }
+    100% { box-shadow: 0 0 0 transparent; transform: scale(1); }
+  }
+
+  /* ── Heat shimmer — subtle vertical wave ── */
+  .animate-heat {
+    animation: heat-shimmer 2s ease-in-out infinite;
+  }
+  @keyframes heat-shimmer {
+    0%, 100% { transform: scaleY(1) translateY(0); opacity: 0.15; }
+    50% { transform: scaleY(1.1) translateY(-1px); opacity: 0.25; }
+  }
+
   /* ── Scrollbar none ── */
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
