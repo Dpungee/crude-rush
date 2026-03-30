@@ -16,20 +16,19 @@ export function GameGrid() {
         {unlockedTileCount <= 1 ? 'Your Empire Begins Here' : `${unlockedTileCount} plots claimed`}
       </div>
 
-      {/* World container — continuous terrain, no visible grid */}
+      {/* World container — continuous terrain */}
       <div className="relative rounded-lg overflow-hidden"
-        style={{
-          background: 'linear-gradient(170deg, #1e1812 0%, #17130e 30%, #110e0a 60%, #0d0b08 100%)',
-        }}
+        style={{ background: '#161310' }}
       >
-        {/* Terrain variation — natural ground patches */}
+        {/* Central warm zone — radial, NOT square. This is the main terrain light. */}
         <div className="absolute inset-0 pointer-events-none z-[1]"
           style={{
             backgroundImage: `
-              radial-gradient(ellipse 40% 35% at 25% 25%, rgba(139,92,46,0.06) 0%, transparent 100%),
-              radial-gradient(ellipse 30% 40% at 65% 55%, rgba(120,80,40,0.05) 0%, transparent 100%),
-              radial-gradient(ellipse 45% 30% at 45% 80%, rgba(100,70,30,0.04) 0%, transparent 100%),
-              radial-gradient(ellipse 20% 20% at 80% 20%, rgba(80,60,35,0.03) 0%, transparent 100%)`,
+              radial-gradient(circle at 50% 50%, rgba(50,40,28,0.5) 0%, rgba(30,25,18,0.3) 25%, transparent 55%),
+              radial-gradient(ellipse 60% 50% at 40% 45%, rgba(80,60,35,0.08) 0%, transparent 100%),
+              radial-gradient(ellipse 40% 60% at 60% 55%, rgba(70,55,30,0.06) 0%, transparent 100%),
+              radial-gradient(ellipse 30% 25% at 25% 30%, rgba(90,65,35,0.04) 0%, transparent 100%),
+              radial-gradient(ellipse 25% 30% at 75% 70%, rgba(85,60,30,0.03) 0%, transparent 100%)`,
           }}
         />
 

@@ -19,15 +19,10 @@ interface GridCellProps {
   cell: GridCellType
 }
 
-// ── Ground colors per ring — desert gradient, lighter near center ────────────
-const RING_GROUND: Record<number, string> = {
-  0: '#2a2218', // HQ — warm brown earth
-  1: '#241e15', // Starter — dusty ground
-  2: '#1f1a12', // Expansion — darker earth
-  3: '#191510', // Industrial — grey-brown
-  4: '#14110d', // Deep — dark rocky
-  5: '#100e0a', // Frontier — near black
-}
+// ── Unified ground color — NO per-ring banding ────────────────────────────────
+// All cells share ONE base color. Terrain variation comes from the GameGrid
+// radial gradients, not from per-cell backgrounds. This eliminates square bands.
+const GROUND_COLOR = '#161310'
 
 // ── Building stat helpers ────────────────────────────────────────────────────
 const METRIC_COLOR: Record<BuildingType, string> = {
@@ -121,7 +116,9 @@ export function GridCell({ cell }: GridCellProps) {
   const ring = cell.ring ?? 0
   const trait = cell.trait ?? 'normal'
   const isRareTile = trait === 'rich' || trait === 'gusher'
-  const groundColor = RING_GROUND[ring] ?? RING_GROUND[5]
+  // Distance from center (0-1 normalized). Used for smooth fog falloff.
+  const cx = 5, cy = 5 // center of 11x11 grid
+  const dist = Math.sqrt((cell.x - cx) ** 2 + (cell.y - cy) ** 2) / 7.07 // max ~7.07
 
   // Deterministic small prop variations
   const h1 = hashCoord(cell.x, cell.y, 1)
@@ -131,12 +128,13 @@ export function GridCell({ cell }: GridCellProps) {
   // LOCKED — dark fog, blends seamlessly into terrain
   // ══════════════════════════════════════════════════════════════════════════
   if (cell.status === 'locked') {
-    const fogAlpha = ring >= 5 ? 0.9 : ring >= 4 ? 0.8 : ring >= 3 ? 0.7 : 0.6
+    // Smooth distance-based fog — no square banding
+    const fogAlpha = Math.min(0.95, 0.45 + dist * 0.55)
     return (
       <div className="relative aspect-square select-none"
-        style={{ backgroundColor: groundColor }}
+        style={{ backgroundColor: GROUND_COLOR }}
       >
-        <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${fogAlpha})` }} />
+        <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${fogAlpha.toFixed(2)})` }} />
         {h1 < 20 && (
           <div className="absolute rounded-full opacity-[0.04]"
             style={{ width: '40%', height: '30%', backgroundColor: '#6b5234',
@@ -164,10 +162,10 @@ export function GridCell({ cell }: GridCellProps) {
           'hover:brightness-130 active:scale-[0.97]',
           !canAffordUnlock && 'opacity-35'
         )}
-        style={{ backgroundColor: groundColor }}
+        style={{ backgroundColor: GROUND_COLOR }}
       >
-        {/* Lighter haze than locked — this is frontier, not fog */}
-        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(10,10,10,0.3)' }} />
+        {/* Distance-based frontier haze — smoother than ring-based */}
+        <div className="absolute inset-0" style={{ backgroundColor: `rgba(10,10,10,${(0.2 + dist * 0.25).toFixed(2)})` }} />
 
         {/* Subtle survey stakes — just two tiny marks */}
         <div className="absolute top-[4px] left-[4px] w-[1px] h-[3px] bg-crude-600/25" />
@@ -212,7 +210,7 @@ export function GridCell({ cell }: GridCellProps) {
         'relative aspect-square transition-all duration-150',
         'hover:brightness-115 active:scale-[0.98]',
       )}
-      style={{ backgroundColor: groundColor }}
+      style={{ backgroundColor: GROUND_COLOR }}
     >
       {/* Selection glow — subtle ground highlight, no border ring */}
       {isSelected && (
