@@ -52,13 +52,16 @@ function useCellJitter(x: number, y: number) {
     const h4 = cellHash(x, y, 4)
     const h5 = cellHash(x, y, 5)
     return {
-      offsetX: (h1 - 0.5) * 12,
-      offsetY: (h2 - 0.5) * 10,
-      padSize: 70 + h3 * 20,
-      padStretchX: 0.85 + h4 * 0.3,
-      padStretchY: 0.85 + h5 * 0.3,
-      padRotation: (h1 - 0.5) * 15,
+      // LARGE offsets — ±25% of cell — enough to truly break row/column alignment
+      offsetX: (h1 - 0.5) * 50,
+      offsetY: (h2 - 0.5) * 40,
+      padSize: 60 + h3 * 25,
+      padStretchX: 0.8 + h4 * 0.4,
+      padStretchY: 0.8 + h5 * 0.4,
+      padRotation: (h1 - 0.5) * 25,
       padType: Math.floor(h2 * 3),
+      // Scale variation — some pads slightly bigger/smaller
+      scaleVar: 0.88 + h3 * 0.24,
     }
   }, [x, y])
 }
@@ -141,12 +144,13 @@ export function GridCell({ cell }: GridCellProps) {
     )
   }
 
-  // AVAILABLE — irregular dirt marking, no dashed circles
+  // AVAILABLE — irregular dirt marking, entire cell shifted by jitter
   if (cell.status === 'available') {
     return (
       <button onClick={handleClick}
         className={cn('relative aspect-square transition-all duration-200 hover:brightness-150 active:scale-[0.97]',
-          !canAffordUnlock && 'opacity-25')}>
+          !canAffordUnlock && 'opacity-25')}
+        style={{ transform: `translate(${jitter.offsetX}%, ${jitter.offsetY}%) scale(${jitter.scaleVar})` }}>
         <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${(0.1 + dist * 0.25).toFixed(2)})` }} />
         <div className="absolute pointer-events-none"
           style={{
@@ -158,8 +162,7 @@ export function GridCell({ cell }: GridCellProps) {
         {trait === 'gusher' && canAffordUnlock && (
           <div className="absolute inset-[25%] rounded-full bg-crude-500/8 animate-pulse" />
         )}
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10"
-          style={{ transform: `translate(${jitter.offsetX * 0.3}%, ${jitter.offsetY * 0.3}%)` }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
           {isRareTile && (
             <span className={cn('text-[6px] font-black leading-none mb-0.5',
               trait === 'gusher' ? 'text-crude-400/50' : 'text-amber-400/35')}>
@@ -175,10 +178,11 @@ export function GridCell({ cell }: GridCellProps) {
     )
   }
 
-  // UNLOCKED — building or empty pad, all positions jittered
+  // UNLOCKED — entire cell shifted by jitter so buildings don't align in rows
   return (
     <button onClick={handleClick}
-      className="relative aspect-square transition-all duration-150 hover:brightness-120 active:scale-[0.98]">
+      className="relative aspect-square transition-all duration-150 hover:brightness-120 active:scale-[0.98]"
+      style={{ transform: `translate(${jitter.offsetX}%, ${jitter.offsetY}%) scale(${jitter.scaleVar})` }}>
       {isSelected && (
         <div className="absolute pointer-events-none z-[1]"
           style={{
@@ -197,23 +201,20 @@ export function GridCell({ cell }: GridCellProps) {
               borderRadius: '40% 50% 45% 55%',
             }} />
           <div className="absolute inset-0"
-            style={{ transform: `translate(${jitter.offsetX}%, ${jitter.offsetY}%)` }}>
+            >
             <BuildingRenderer type={cell.building!} level={cell.level} isUpgrading={isUnderConstruction} />
           </div>
-          <div className="absolute z-10 text-[5px] font-black text-oil-400/50"
-            style={{ top: `${2 + jitter.offsetY}%`, right: `${4 - jitter.offsetX}%` }}>
+          <div className="absolute top-[2px] right-[3px] z-10 text-[5px] font-black text-oil-400/50">
             L{cell.level}
           </div>
           {isRareTile && (
-            <div className={cn('absolute z-10 text-[5px] font-black',
-              trait === 'gusher' ? 'text-crude-400/40' : 'text-amber-400/30')}
-              style={{ top: `${2 + jitter.offsetY}%`, left: `${4 + jitter.offsetX}%` }}>
+            <div className={cn('absolute top-[2px] left-[3px] z-10 text-[5px] font-black',
+              trait === 'gusher' ? 'text-crude-400/40' : 'text-amber-400/30')}>
               {trait === 'gusher' ? '★' : '◆'}
             </div>
           )}
           {metric && (
-            <span className={cn('absolute left-1/2 z-10 text-[6px] font-bold leading-none tabular-nums', METRIC_COLOR[cell.building!])}
-              style={{ bottom: `${2 + jitter.offsetY * 0.5}%`, transform: `translateX(calc(-50% + ${jitter.offsetX * 0.5}%))` }}>
+            <span className={cn('absolute bottom-[2px] left-1/2 -translate-x-1/2 z-10 text-[6px] font-bold leading-none tabular-nums', METRIC_COLOR[cell.building!])}>
               {metric}
             </span>
           )}
@@ -230,7 +231,7 @@ export function GridCell({ cell }: GridCellProps) {
               inset: `${(100 - jitter.padSize * 0.9) / 2}%`, background: padBg,
               transform: `rotate(${jitter.padRotation}deg)`, borderRadius: '40% 50% 45% 55%',
             }} />
-          <div className="absolute inset-0" style={{ transform: `translate(${jitter.offsetX}%, ${jitter.offsetY}%)` }}>
+          <div className="absolute inset-0" >
             <ConstructionPreview type={cell.constructionType!} />
           </div>
         </>
@@ -244,7 +245,7 @@ export function GridCell({ cell }: GridCellProps) {
               borderRadius: '40% 50% 45% 55%',
             }} />
           <div className="absolute inset-0 flex flex-col items-center justify-center"
-            style={{ transform: `translate(${jitter.offsetX * 0.5}%, ${jitter.offsetY * 0.5}%)` }}>
+            >
             <span className="text-sm text-amber-500/50 leading-none select-none font-bold">+</span>
             <span className="text-[5px] font-bold text-amber-500/25 leading-none mt-0.5">BUILD</span>
           </div>
@@ -259,7 +260,7 @@ export function GridCell({ cell }: GridCellProps) {
               borderRadius: '45% 55% 40% 50%',
             }} />
           <div className="absolute inset-0 flex items-center justify-center"
-            style={{ transform: `translate(${jitter.offsetX * 0.4}%, ${jitter.offsetY * 0.4}%)` }}>
+            >
             <span className="text-[6px] text-oil-700/10 select-none">+</span>
           </div>
         </>
