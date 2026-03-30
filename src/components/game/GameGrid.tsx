@@ -16,9 +16,14 @@ export function GameGrid() {
         {unlockedTileCount <= 1 ? 'Your Empire Begins Here' : `${unlockedTileCount} plots claimed`}
       </div>
 
-      {/* World container — NO rounded corners, NO card feel, terrain fills to edges */}
+      {/* FORCED TEST: bright red bg to prove this component renders. Remove after verification. */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-xs font-black px-3 py-1 rounded">
+        BOARD V2 — TEST
+      </div>
+
+      {/* World container */}
       <div className="relative overflow-hidden"
-        style={{ background: '#0e0c0a' }}
+        style={{ background: '#330000' }}
       >
         {/* Central warm zone — radial, NOT square. This is the main terrain light. */}
         <div className="absolute inset-0 pointer-events-none z-[1]"
