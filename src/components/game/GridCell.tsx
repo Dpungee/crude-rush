@@ -128,32 +128,24 @@ export function GridCell({ cell }: GridCellProps) {
   const h2 = hashCoord(cell.x, cell.y, 2)
 
   // ══════════════════════════════════════════════════════════════════════════
-  // LOCKED — fogged terrain, barely visible
+  // LOCKED — dark fog, blends seamlessly into terrain
   // ══════════════════════════════════════════════════════════════════════════
   if (cell.status === 'locked') {
-    const fogAlpha = ring >= 5 ? 0.85 : ring >= 4 ? 0.75 : ring >= 3 ? 0.65 : 0.55
+    const fogAlpha = ring >= 5 ? 0.9 : ring >= 4 ? 0.8 : ring >= 3 ? 0.7 : 0.6
     return (
-      <div
-        className="relative aspect-square select-none overflow-hidden"
+      <div className="relative aspect-square select-none"
         style={{ backgroundColor: groundColor }}
       >
-        {/* Fog overlay */}
-        <div
-          className="absolute inset-0"
-          style={{ backgroundColor: `rgba(10,10,10,${fogAlpha})` }}
-        />
-        {/* Subtle terrain variation under fog */}
-        {h1 < 15 && (
-          <div className="absolute inset-[30%] rounded-full opacity-[0.06]"
-            style={{ backgroundColor: '#8b5c2e' }} />
+        <div className="absolute inset-0" style={{ backgroundColor: `rgba(8,7,5,${fogAlpha})` }} />
+        {h1 < 20 && (
+          <div className="absolute rounded-full opacity-[0.04]"
+            style={{ width: '40%', height: '30%', backgroundColor: '#6b5234',
+              top: `${20 + (h2 % 40)}%`, left: `${15 + (h1 % 50)}%` }} />
         )}
-        {/* Rare tile shimmer visible through fog */}
         {isRareTile && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className={cn(
-              'w-1.5 h-1.5 rounded-full animate-pulse',
-              trait === 'gusher' ? 'bg-crude-500/25' : 'bg-amber-500/15'
-            )} />
+            <div className={cn('w-1.5 h-1.5 rounded-full animate-pulse',
+              trait === 'gusher' ? 'bg-crude-500/20' : 'bg-amber-500/12')} />
           </div>
         )}
       </div>
@@ -161,52 +153,47 @@ export function GridCell({ cell }: GridCellProps) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // AVAILABLE — frontier land, claimable
+  // AVAILABLE — frontier land, claimable (no box — just lighter ground with price)
   // ══════════════════════════════════════════════════════════════════════════
   if (cell.status === 'available') {
     return (
       <button
         onClick={handleClick}
         className={cn(
-          'relative aspect-square overflow-hidden transition-all duration-200',
-          'hover:brightness-125 active:scale-[0.97]',
-          !canAffordUnlock && 'opacity-40'
+          'relative aspect-square transition-all duration-200',
+          'hover:brightness-130 active:scale-[0.97]',
+          !canAffordUnlock && 'opacity-35'
         )}
         style={{ backgroundColor: groundColor }}
       >
-        {/* Frontier haze — lighter than locked */}
-        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(10,10,10,0.35)' }} />
+        {/* Lighter haze than locked — this is frontier, not fog */}
+        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(10,10,10,0.3)' }} />
 
-        {/* Stake markers in corners */}
-        <div className="absolute top-[2px] left-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
-        <div className="absolute top-[2px] right-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
-        <div className="absolute bottom-[2px] left-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
-        <div className="absolute bottom-[2px] right-[2px] w-[2px] h-[2px] bg-crude-600/40 rounded-full" />
+        {/* Subtle survey stakes — just two tiny marks */}
+        <div className="absolute top-[4px] left-[4px] w-[1px] h-[3px] bg-crude-600/25" />
+        <div className="absolute bottom-[4px] right-[4px] w-[1px] h-[3px] bg-crude-600/25" />
 
-        {/* Dashed claim boundary */}
-        <div className="absolute inset-[3px] border border-dashed border-crude-600/30 rounded-[1px]" />
-
-        {/* Trait glow for special tiles */}
+        {/* Trait ground glow — seeps through the ground, no borders */}
         {trait === 'gusher' && canAffordUnlock && (
-          <div className="absolute inset-0 bg-crude-500/8 animate-pulse" />
+          <div className="absolute inset-[20%] rounded-full bg-crude-500/8 animate-pulse" />
         )}
         {trait === 'rich' && canAffordUnlock && (
-          <div className="absolute inset-0 bg-amber-500/5" />
+          <div className="absolute inset-[25%] rounded-full bg-amber-600/5" />
         )}
 
-        {/* Price label */}
+        {/* Price label — floating on terrain */}
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
           {isRareTile && (
             <span className={cn(
               'text-[6px] font-black leading-none mb-0.5',
-              trait === 'gusher' ? 'text-crude-400/70' : 'text-amber-400/60'
+              trait === 'gusher' ? 'text-crude-400/60' : 'text-amber-400/50'
             )}>
               {trait === 'gusher' ? '★ GUSHER' : '◆ RICH'}
             </span>
           )}
           <span className={cn(
             'text-[8px] font-bold leading-none tabular-nums',
-            canAffordUnlock ? 'text-crude-400/80' : 'text-oil-600/50'
+            canAffordUnlock ? 'text-crude-400/70' : 'text-oil-600/40'
           )}>
             ${formatCommas(cell.unlockCost)}
           </span>
@@ -216,114 +203,52 @@ export function GridCell({ cell }: GridCellProps) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // UNLOCKED — owned territory
+  // UNLOCKED — owned territory. No boxes. Buildings sit on ground.
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <button
       onClick={handleClick}
       className={cn(
-        'relative aspect-square overflow-hidden transition-all duration-150',
-        'hover:brightness-110 active:scale-[0.97]',
-        isSelected && 'ring-1 ring-crude-400 ring-offset-1 ring-offset-[#0d0b08] z-10 brightness-110',
+        'relative aspect-square transition-all duration-150',
+        'hover:brightness-115 active:scale-[0.98]',
       )}
       style={{ backgroundColor: groundColor }}
     >
-      {/* ── Ground pad — concrete/steel platform for buildings ──────────── */}
-      {def && (
-        <>
-          {/* Dirt road tracks leading to edges (where pipes connect) */}
-          <div className="absolute top-0 left-[40%] right-[40%] h-[12%]"
-            style={{ background: 'linear-gradient(180deg, rgba(70,60,42,0.25), transparent)' }} />
-          <div className="absolute bottom-0 left-[40%] right-[40%] h-[12%]"
-            style={{ background: 'linear-gradient(0deg, rgba(70,60,42,0.25), transparent)' }} />
-          <div className="absolute left-0 top-[40%] bottom-[40%] w-[12%]"
-            style={{ background: 'linear-gradient(90deg, rgba(70,60,42,0.25), transparent)' }} />
-          <div className="absolute right-0 top-[40%] bottom-[40%] w-[12%]"
-            style={{ background: 'linear-gradient(270deg, rgba(70,60,42,0.25), transparent)' }} />
-
-          {/* Concrete pad */}
-          <div className="absolute inset-[8%] rounded-[2px]"
-            style={{
-              background: 'linear-gradient(180deg, rgba(60,55,45,0.5) 0%, rgba(40,35,28,0.6) 100%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.4)',
-              borderBottom: '1px solid rgba(0,0,0,0.2)',
-            }}
-          />
-
-          {/* Hazard corners on refinery/terminal pads */}
-          {(isRefinery || isTerminal) && (
-            <>
-              <div className="absolute top-[7%] left-[7%] w-[4px] h-[1px]"
-                style={{ background: 'repeating-linear-gradient(90deg, rgba(234,179,8,0.2) 0px, rgba(234,179,8,0.2) 1px, transparent 1px, transparent 2px)' }} />
-              <div className="absolute top-[7%] right-[7%] w-[4px] h-[1px]"
-                style={{ background: 'repeating-linear-gradient(90deg, rgba(234,179,8,0.2) 0px, rgba(234,179,8,0.2) 1px, transparent 1px, transparent 2px)' }} />
-            </>
-          )}
-        </>
+      {/* Selection glow — subtle ground highlight, no border ring */}
+      {isSelected && (
+        <div className="absolute inset-0 z-[1] pointer-events-none"
+          style={{ boxShadow: 'inset 0 0 8px rgba(212,160,23,0.3), 0 0 6px rgba(212,160,23,0.15)' }} />
       )}
 
-      {/* ── Empty plot pad (no building) ────────────────────────────────── */}
-      {!def && !isUnderConstruction && (
-        <>
-          {/* Dirt pad */}
-          <div className="absolute inset-[12%] rounded-[1px]"
-            style={{
-              background: `linear-gradient(180deg, rgba(50,42,30,0.3) 0%, rgba(35,28,18,0.4) 100%)`,
-              borderTop: '1px solid rgba(80,65,40,0.1)',
-            }}
-          />
-          {/* Ground props — rocks, dirt patches */}
-          {h1 < 25 && (
-            <div className="absolute rounded-full opacity-[0.15]"
-              style={{
-                width: '3px', height: '2px',
-                backgroundColor: '#6b5834',
-                top: `${30 + (h2 % 30)}%`,
-                left: `${20 + (h1 % 40)}%`,
-              }}
-            />
-          )}
-          {h2 > 70 && (
-            <div className="absolute rounded-full opacity-[0.1]"
-              style={{
-                width: '2px', height: '2px',
-                backgroundColor: '#5a4a2e',
-                bottom: `${20 + (h1 % 25)}%`,
-                right: `${15 + (h2 % 30)}%`,
-              }}
-            />
-          )}
-        </>
-      )}
-
-      {/* ── Trait ground effect ─────────────────────────────────────────── */}
+      {/* Trait ground seep — organic glow, not a box */}
       {isRareTile && (
         <div className={cn(
-          'absolute inset-0 pointer-events-none',
-          trait === 'gusher' ? 'bg-crude-500/6' : 'bg-amber-600/4'
+          'absolute inset-[15%] rounded-full pointer-events-none',
+          trait === 'gusher' ? 'bg-crude-500/8' : 'bg-amber-600/5'
         )} />
+      )}
+
+      {/* Ground props — rocks, scuffs — on all owned tiles (even empty) */}
+      {h1 < 30 && (
+        <div className="absolute rounded-full opacity-[0.08]"
+          style={{ width: '4px', height: '3px', backgroundColor: '#6b5834',
+            top: `${25 + (h2 % 35)}%`, left: `${15 + (h1 % 45)}%` }} />
+      )}
+      {h2 > 65 && (
+        <div className="absolute rounded-full opacity-[0.06]"
+          style={{ width: '3px', height: '2px', backgroundColor: '#5a4a2e',
+            bottom: `${18 + (h1 % 30)}%`, right: `${12 + (h2 % 35)}%` }} />
       )}
 
       {/* ── Building content ────────────────────────────────────────────── */}
       {def ? (
         <>
-          {/* Level badge */}
-          <div className="absolute top-0 right-0 z-10 text-[6px] font-black text-oil-300 bg-oil-950/70 px-0.5 rounded-bl leading-tight">
-            {cell.level}
-          </div>
+          {/* Building shadow on ground — grounds the building visually */}
+          <div className="absolute inset-[15%] bottom-[5%] top-[25%] rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse, rgba(0,0,0,0.25) 0%, transparent 70%)' }} />
 
-          {/* Trait badge */}
-          {isRareTile && (
-            <div className={cn(
-              'absolute top-0 left-0 z-10 text-[5px] px-0.5 rounded-br leading-tight font-black',
-              trait === 'gusher' ? 'bg-crude-900/60 text-crude-400' : 'bg-amber-900/50 text-amber-400'
-            )}>
-              {trait === 'gusher' ? '★' : '◆'}
-            </div>
-          )}
-
-          {/* Building visual */}
-          <div className="absolute inset-[5%]">
+          {/* Building visual — larger, sits on ground */}
+          <div className="absolute inset-[2%]">
             <BuildingRenderer
               type={cell.building!}
               level={cell.level}
@@ -331,7 +256,22 @@ export function GridCell({ cell }: GridCellProps) {
             />
           </div>
 
-          {/* Production metric */}
+          {/* Level badge — small, unobtrusive */}
+          <div className="absolute top-[1px] right-[2px] z-10 text-[5px] font-black text-oil-400/70 leading-tight">
+            L{cell.level}
+          </div>
+
+          {/* Trait badge */}
+          {isRareTile && (
+            <div className={cn(
+              'absolute top-[1px] left-[2px] z-10 text-[5px] font-black leading-tight',
+              trait === 'gusher' ? 'text-crude-400/60' : 'text-amber-400/50'
+            )}>
+              {trait === 'gusher' ? '★' : '◆'}
+            </div>
+          )}
+
+          {/* Production metric — floating below building */}
           {metric && (
             <span className={cn(
               'absolute bottom-[1px] left-1/2 -translate-x-1/2 text-[6px] font-bold leading-none tabular-nums z-10',
@@ -341,60 +281,37 @@ export function GridCell({ cell }: GridCellProps) {
             </span>
           )}
 
-          {/* Active production strip */}
-          {(isProducer || isRefinery) && !isUnderConstruction && (
-            <div className="absolute bottom-0 left-0 right-0 h-[2px]">
-              <div className="h-full w-full animate-pulse"
-                style={{
-                  background: isRefinery
-                    ? 'linear-gradient(90deg, transparent, rgba(220,38,38,0.4), transparent)'
-                    : 'linear-gradient(90deg, transparent, rgba(217,119,6,0.4), transparent)',
-                }}
-              />
-            </div>
-          )}
-
-          {/* Terminal aura */}
+          {/* Terminal aura — soft, no border */}
           {isTerminal && !isUnderConstruction && (
-            <div className="absolute -inset-[2px] rounded-[2px] border border-yellow-500/10 animate-pulse pointer-events-none" />
+            <div className="absolute inset-0 pointer-events-none animate-pulse"
+              style={{ boxShadow: 'inset 0 0 10px rgba(234,179,8,0.08)' }} />
           )}
 
-          {/* Sell flash — brief golden pulse on terminals/refineries */}
+          {/* Sell flash */}
           {sellFlash && (
-            <div className="absolute inset-0 pointer-events-none sell-flash rounded-[2px]" />
-          )}
-
-          {/* Ground pipe stubs on developed plots */}
-          {h1 < 40 && (
-            <div className="absolute bottom-[15%] left-0 w-[3px] h-[2px] bg-stone-700/30 rounded-r-sm" />
-          )}
-          {h2 > 60 && (
-            <div className="absolute top-[40%] right-0 w-[3px] h-[2px] bg-stone-700/25 rounded-l-sm" />
+            <div className="absolute inset-0 pointer-events-none sell-flash" />
           )}
         </>
       ) : isUnderConstruction && constructionDef ? (
-        /* Under construction */
-        <div className="absolute inset-[5%]">
+        /* Under construction — ghost building + caution indicator */
+        <div className="absolute inset-[2%]">
           <ConstructionPreview type={cell.constructionType!} />
-          {/* Caution stripe at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-[3px] overflow-hidden">
+          {/* Caution stripe */}
+          <div className="absolute bottom-0 left-[10%] right-[10%] h-[3px] overflow-hidden rounded-full">
             <div className="h-full w-[200%] animate-oil-flow"
-              style={{
-                background: 'repeating-linear-gradient(90deg, #f59e0b33 0px, #f59e0b33 4px, transparent 4px, transparent 8px)',
-              }}
-            />
+              style={{ background: 'repeating-linear-gradient(90deg, #f59e0b33 0px, #f59e0b33 4px, transparent 4px, transparent 8px)' }} />
           </div>
         </div>
       ) : isFirstEmptyPlot ? (
-        /* First empty plot — beacon */
+        /* First empty plot — subtle beacon, no box */
         <div className="absolute inset-0 flex flex-col items-center justify-center plot-beacon">
-          <span className="text-sm text-amber-500/70 leading-none select-none font-bold">+</span>
-          <span className="text-[6px] font-bold text-amber-500/50 leading-none mt-0.5">BUILD</span>
+          <span className="text-sm text-amber-500/60 leading-none select-none font-bold">+</span>
+          <span className="text-[6px] font-bold text-amber-500/40 leading-none mt-0.5">BUILD</span>
         </div>
       ) : (
-        /* Empty plot — just ground with subtle indicator */
+        /* Empty owned plot — just a tiny + on bare ground */
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-2 h-2 border border-dashed border-oil-700/15 rounded-[1px]" />
+          <span className="text-[8px] text-oil-700/20 select-none">+</span>
         </div>
       )}
     </button>
